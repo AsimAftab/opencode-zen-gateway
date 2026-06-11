@@ -52,7 +52,7 @@ def setup_test_environment(tmp_path_factory):
     This fixture:
     - Creates temporary directory for test files
     - Creates mock credentials.json with valid test data
-    - Creates mock Kiro credentials file
+    - Creates mock OpenCode credentials file
     - Patches config paths to use temporary files
     """
     print("🔧 Setting up isolated test environment...")
@@ -60,16 +60,16 @@ def setup_test_environment(tmp_path_factory):
     # Create temporary directory for test files
     tmp_dir = tmp_path_factory.mktemp("test_config")
     
-    # Create mock Kiro credentials file (JSON format)
-    mock_kiro_creds = {
+    # Create mock OpenCode credentials file (JSON format)
+    mock_opencode_zen_creds = {
         "accessToken": "mock_access_token_from_fixture",
         "refreshToken": "mock_refresh_token_from_fixture",
         "expiresAt": "2099-01-01T00:00:00.000Z",
         "profileArn": "arn:aws:codewhisperer:us-east-1:123456789:profile/mock",
         "region": "us-east-1"
     }
-    mock_creds_file = tmp_dir / "mock_kiro_creds.json"
-    mock_creds_file.write_text(json.dumps(mock_kiro_creds, indent=2))
+    mock_creds_file = tmp_dir / "mock_opencode_zen_creds.json"
+    mock_creds_file.write_text(json.dumps(mock_opencode_zen_creds, indent=2))
     
     # Create credentials.json pointing to mock file
     credentials_data = [
@@ -84,11 +84,11 @@ def setup_test_environment(tmp_path_factory):
     
     # Patch config paths to use temporary files
     import opencode_zen.config
-    original_creds_file = kiro.config.ACCOUNTS_CONFIG_FILE
-    original_state_file = kiro.config.ACCOUNTS_STATE_FILE
+    original_creds_file = opencode_zen.config.ACCOUNTS_CONFIG_FILE
+    original_state_file = opencode_zen.config.ACCOUNTS_STATE_FILE
     
-    kiro.config.ACCOUNTS_CONFIG_FILE = str(creds_file)
-    kiro.config.ACCOUNTS_STATE_FILE = str(tmp_dir / "state.json")
+    opencode_zen.config.ACCOUNTS_CONFIG_FILE = str(creds_file)
+    opencode_zen.config.ACCOUNTS_STATE_FILE = str(tmp_dir / "state.json")
     
     print(f"✅ Test credentials: {creds_file}")
     print(f"✅ Test state: {tmp_dir / 'state.json'}")
@@ -96,8 +96,8 @@ def setup_test_environment(tmp_path_factory):
     yield
     
     # Restore original paths
-    kiro.config.ACCOUNTS_CONFIG_FILE = original_creds_file
-    kiro.config.ACCOUNTS_STATE_FILE = original_state_file
+    opencode_zen.config.ACCOUNTS_CONFIG_FILE = original_creds_file
+    opencode_zen.config.ACCOUNTS_STATE_FILE = original_state_file
     
     print("🧹 Test environment cleaned up")
 
@@ -125,19 +125,19 @@ def mock_env_vars(monkeypatch):
 # =============================================================================
 
 @pytest.fixture
-def valid_kiro_token():
-    """Returns a valid mock Kiro access token."""
-    return "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.test_kiro_access_token"
+def valid_opencode_zen_token():
+    """Returns a valid mock OpenCode access token."""
+    return "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.test_opencode_zen_access_token"
 
 
 @pytest.fixture
-def mock_kiro_token_response(valid_kiro_token):
+def mock_opencode_zen_token_response(valid_opencode_zen_token):
     """
-    Factory for creating mock Kiro token refresh endpoint responses.
+    Factory for creating mock OpenCode token refresh endpoint responses.
     """
     def _create_response(expires_in: int = 3600, token: str = None):
         return {
-            "accessToken": token or valid_kiro_token,
+            "accessToken": token or valid_opencode_zen_token,
             "refreshToken": "new_refresh_token_xyz",
             "expiresIn": expires_in,
             "profileArn": "arn:aws:codewhisperer:us-east-1:123456789:profile/test"
@@ -178,13 +178,13 @@ def auth_headers(valid_proxy_api_key):
 
 
 # =============================================================================
-# Kiro Models Fixtures
+# OpenCode Models Fixtures
 # =============================================================================
 
 @pytest.fixture
-def mock_kiro_models_response():
+def mock_opencode_zen_models_response():
     """
-    Mock successful response from Kiro API for ListAvailableModels.
+    Mock successful response from OpenCode API for ListAvailableModels.
     """
     return {
         "models": [
@@ -217,13 +217,13 @@ def mock_kiro_models_response():
 
 
 # =============================================================================
-# Kiro Streaming Response Fixtures
+# OpenCode Streaming Response Fixtures
 # =============================================================================
 
 @pytest.fixture
-def mock_kiro_streaming_chunks():
+def mock_opencode_zen_streaming_chunks():
     """
-    Returns a list of mock SSE chunks from Kiro API for streaming response.
+    Returns a list of mock SSE chunks from OpenCode API for streaming response.
     Covers: regular text, tool calls, usage.
     """
     return [
@@ -244,9 +244,9 @@ def mock_kiro_streaming_chunks():
     ]
 
 @pytest.fixture
-def mock_kiro_simple_text_chunks():
+def mock_opencode_zen_simple_text_chunks():
     """
-    Mock simple text response from Kiro (without tool calls).
+    Mock simple text response from OpenCode (without tool calls).
     """
     return [
         b'{"content":"This is a complete response."}',
@@ -256,9 +256,9 @@ def mock_kiro_simple_text_chunks():
 
 
 @pytest.fixture
-def mock_kiro_stream_with_usage():
+def mock_opencode_zen_stream_with_usage():
     """
-    Mock Kiro SSE response with usage information.
+    Mock OpenCode SSE response with usage information.
     """
     return [
         b'{"content":"Final text."}',
@@ -401,7 +401,7 @@ def block_all_network_calls():
     Ensures that NO test can make a real network request.
     
     Provides mock responses for:
-    - Token refresh (Kiro Desktop Auth and AWS SSO OIDC)
+    - Token refresh (OpenCode Desktop Auth and AWS SSO OIDC)
     - ListAvailableModels API
     - Streaming responses (for route tests)
     """
@@ -409,8 +409,8 @@ def block_all_network_calls():
     # Create a mock that will be used for all AsyncClient instances
     mock_async_client = AsyncMock(spec=httpx.AsyncClient)
 
-    # Mock response for token refresh (Kiro Desktop Auth format)
-    # Used by KiroAuthManager._refresh_token_kiro_desktop()
+    # Mock response for token refresh (OpenCode Desktop Auth format)
+    # Used by OpenCodeAuthManager._refresh_token_opencode_zen_desktop()
     mock_token_response = AsyncMock(spec=httpx.Response)
     mock_token_response.status_code = 200
     mock_token_response.json.return_value = {
@@ -496,10 +496,10 @@ def block_all_network_calls():
 
     # Patch AsyncClient in modules where it's used
     patchers = [
-        patch('kiro.auth.httpx.AsyncClient', return_value=mock_async_client),
-        patch('kiro.http_client.httpx.AsyncClient', return_value=mock_async_client),
-        patch('kiro.streaming_openai.httpx.AsyncClient', return_value=mock_async_client),
-        patch('kiro.account_manager.httpx.AsyncClient', return_value=mock_async_client),
+        patch('opencode_zen.auth.httpx.AsyncClient', return_value=mock_async_client),
+        patch('opencode_zen.http_client.httpx.AsyncClient', return_value=mock_async_client),
+        patch('opencode_zen.streaming_openai.httpx.AsyncClient', return_value=mock_async_client),
+        patch('opencode_zen.account_manager.httpx.AsyncClient', return_value=mock_async_client),
     ]
     
     # Start patchers
@@ -561,17 +561,17 @@ async def async_test_client(clean_app):
 
 
 # =============================================================================
-# KiroAuthManager Fixtures
+# OpenCodeAuthManager Fixtures
 # =============================================================================
 
 @pytest.fixture
 def mock_auth_manager():
     """
-    Creates a mocked KiroAuthManager for tests.
+    Creates a mocked OpenCodeAuthManager for tests.
     """
-    from opencode_zen.auth import KiroAuthManager
+    from opencode_zen.auth import OpenCodeAuthManager
     
-    manager = KiroAuthManager(
+    manager = OpenCodeAuthManager(
         refresh_token="test_refresh_token",
         profile_arn="arn:aws:codewhisperer:us-east-1:123456789:profile/test",
         region="us-east-1"
@@ -589,11 +589,11 @@ def mock_auth_manager():
 @pytest.fixture
 def expired_auth_manager():
     """
-    Creates a KiroAuthManager with an expired token.
+    Creates a OpenCodeAuthManager with an expired token.
     """
-    from opencode_zen.auth import KiroAuthManager
+    from opencode_zen.auth import OpenCodeAuthManager
     
-    manager = KiroAuthManager(
+    manager = OpenCodeAuthManager(
         refresh_token="test_refresh_token",
         profile_arn="arn:aws:codewhisperer:us-east-1:123456789:profile/test",
         region="us-east-1"
@@ -655,14 +655,14 @@ def empty_model_cache():
 
 
 @pytest.fixture
-async def populated_model_cache(mock_kiro_models_response):
+async def populated_model_cache(mock_opencode_zen_models_response):
     """
     Creates a ModelInfoCache with pre-populated data.
     """
     from opencode_zen.cache import ModelInfoCache
     
     cache = ModelInfoCache()
-    await cache.update(mock_kiro_models_response["models"])
+    await cache.update(mock_opencode_zen_models_response["models"])
     return cache
 
 
@@ -688,7 +688,7 @@ def mock_datetime():
     """
     fixed_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
     
-    with patch('kiro.auth.datetime') as mock_dt:
+    with patch('opencode_zen.auth.datetime') as mock_dt:
         mock_dt.now.return_value = fixed_time
         mock_dt.fromisoformat = datetime.fromisoformat
         mock_dt.fromtimestamp = datetime.fromtimestamp
@@ -702,7 +702,7 @@ def mock_datetime():
 @pytest.fixture
 def temp_creds_file(tmp_path):
     """
-    Creates a temporary credentials file for tests (Kiro Desktop format).
+    Creates a temporary credentials file for tests (OpenCode Desktop format).
     """
     creds_file = tmp_path / "kiro-auth-token.json"
     creds_data = {
@@ -899,34 +899,34 @@ def aws_event_parser():
 # Test Utilities
 # =============================================================================
 
-def create_kiro_content_chunk(content: str) -> bytes:
-    """Utility for creating a Kiro SSE chunk with content."""
+def create_opencode_zen_content_chunk(content: str) -> bytes:
+    """Utility for creating a OpenCode SSE chunk with content."""
     return f'{{"content":"{content}"}}'.encode()
 
 
-def create_kiro_tool_start_chunk(name: str, tool_id: str) -> bytes:
-    """Utility for creating a Kiro SSE chunk with tool call start."""
+def create_opencode_zen_tool_start_chunk(name: str, tool_id: str) -> bytes:
+    """Utility for creating a OpenCode SSE chunk with tool call start."""
     return f'{{"name":"{name}","toolUseId":"{tool_id}"}}'.encode()
 
 
-def create_kiro_tool_input_chunk(input_json: str) -> bytes:
-    """Utility for creating a Kiro SSE chunk with tool call input."""
+def create_opencode_zen_tool_input_chunk(input_json: str) -> bytes:
+    """Utility for creating a OpenCode SSE chunk with tool call input."""
     escaped = input_json.replace('"', '\\"')
     return f'{{"input":"{escaped}"}}'.encode()
 
 
-def create_kiro_tool_stop_chunk() -> bytes:
-    """Utility for creating a Kiro SSE chunk with tool call stop."""
+def create_opencode_zen_tool_stop_chunk() -> bytes:
+    """Utility for creating a OpenCode SSE chunk with tool call stop."""
     return b'{"stop":true}'
 
 
-def create_kiro_usage_chunk(usage: float) -> bytes:
-    """Utility for creating a Kiro SSE chunk with usage."""
+def create_opencode_zen_usage_chunk(usage: float) -> bytes:
+    """Utility for creating a OpenCode SSE chunk with usage."""
     return f'{{"usage":{usage}}}'.encode()
 
 
-def create_kiro_context_usage_chunk(percentage: float) -> bytes:
-    """Utility for creating a Kiro SSE chunk with context usage."""
+def create_opencode_zen_context_usage_chunk(percentage: float) -> bytes:
+    """Utility for creating a OpenCode SSE chunk with context usage."""
     return f'{{"contextUsagePercentage":{percentage}}}'.encode()
 
 
@@ -1040,19 +1040,19 @@ def temp_sqlite_db_all_keys(tmp_path):
 
 
 # =============================================================================
-# Enterprise Kiro IDE Fixtures (Issue #45)
+# Enterprise OpenCode IDE Fixtures (Issue #45)
 # =============================================================================
 
 @pytest.fixture
 def temp_enterprise_ide_creds_file(tmp_path):
     """
-    Creates a temporary credentials file for Enterprise Kiro IDE.
+    Creates a temporary credentials file for Enterprise OpenCode IDE.
     
     Contains:
     - clientIdHash: Hash used to locate device registration file
     - refreshToken, accessToken, expiresAt, region
     
-    This simulates Enterprise Kiro IDE with IdC (AWS IAM Identity Center) login.
+    This simulates Enterprise OpenCode IDE with IdC (AWS IAM Identity Center) login.
     """
     creds_file = tmp_path / "kiro-auth-token.json"
     creds_data = {
@@ -1070,7 +1070,7 @@ def temp_enterprise_ide_creds_file(tmp_path):
 @pytest.fixture
 def temp_enterprise_device_registration(tmp_path):
     """
-    Creates a temporary device registration file for Enterprise Kiro IDE.
+    Creates a temporary device registration file for Enterprise OpenCode IDE.
     
     Located at: ~/.aws/sso/cache/{clientIdHash}.json
     Contains: clientId, clientSecret
@@ -1640,12 +1640,12 @@ def mock_account():
     Creates a mock Account object with all dependencies.
     """
     from opencode_zen.account_manager import Account, AccountStats
-    from opencode_zen.auth import KiroAuthManager
+    from opencode_zen.auth import OpenCodeAuthManager
     from opencode_zen.cache import ModelInfoCache
     from opencode_zen.model_resolver import ModelResolver
     
     # Create mock auth_manager
-    auth_manager = KiroAuthManager(
+    auth_manager = OpenCodeAuthManager(
         refresh_token="test_refresh_token",
         profile_arn="arn:aws:codewhisperer:us-east-1:123456789:profile/test",
         region="us-east-1"
@@ -1730,7 +1730,7 @@ def mock_account_manager(tmp_path):
 @pytest.fixture
 def mock_list_models_response():
     """
-    Mock response from Kiro API /ListAvailableModels endpoint.
+    Mock response from OpenCode API /ListAvailableModels endpoint.
     
     Returns list of models for account initialization.
     """
@@ -1765,9 +1765,9 @@ def mock_list_models_response():
 
 
 @pytest.fixture
-def mock_kiro_error_response():
+def mock_opencode_zen_error_response():
     """
-    Factory for creating mock Kiro API error responses.
+    Factory for creating mock OpenCode API error responses.
     """
     def _create_error(status_code: int, reason: str = None, message: str = None):
         error_data = {
@@ -1794,7 +1794,7 @@ def temp_account_credentials_files(tmp_path):
     """
     files = {}
     
-    # Account 1: JSON (Kiro Desktop)
+    # Account 1: JSON (OpenCode Desktop)
     account1 = tmp_path / "account1.json"
     account1.write_text(json.dumps({
         "accessToken": "token1",

@@ -900,7 +900,7 @@ class TestThinkingParserConfigIntegration:
         Purpose: Ensure config integration works.
         """
         print("Testing config handling mode...")
-        with patch('kiro.thinking_parser.FAKE_REASONING_HANDLING', 'remove'):
+        with patch('opencode_zen.thinking_parser.FAKE_REASONING_HANDLING', 'remove'):
             parser = ThinkingParser()
             
             print(f"Handling mode: {parser.handling_mode}")
@@ -913,7 +913,7 @@ class TestThinkingParserConfigIntegration:
         """
         print("Testing config open tags...")
         custom_tags = ["<custom>"]
-        with patch('kiro.thinking_parser.FAKE_REASONING_OPEN_TAGS', custom_tags):
+        with patch('opencode_zen.thinking_parser.FAKE_REASONING_OPEN_TAGS', custom_tags):
             parser = ThinkingParser()
             
             print(f"Open tags: {parser.open_tags}")
@@ -949,8 +949,8 @@ class TestInjectThinkingTags:
         print("Testing tag injection when enabled...")
         from opencode_zen.converters_core import inject_thinking_tags, ThinkingConfig
         
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', True):
-            with patch('kiro.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', True):
+            with patch('opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
                 result = inject_thinking_tags("Hello", ThinkingConfig())
         
         print(f"Result: '{result}'")
@@ -966,7 +966,7 @@ class TestInjectThinkingTags:
         print("Testing no tag injection when disabled...")
         from opencode_zen.converters_core import inject_thinking_tags, ThinkingConfig
         
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', False):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', False):
             result = inject_thinking_tags("Hello", ThinkingConfig())
         
         print(f"Result: '{result}'")
@@ -983,8 +983,8 @@ class TestInjectThinkingTags:
         
         original = "This is my original content with special chars: <>&"
         
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', True):
-            with patch('kiro.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', True):
+            with patch('opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
                 result = inject_thinking_tags(original, ThinkingConfig())
         
         print(f"Result ends with original: {result.endswith(original)}")

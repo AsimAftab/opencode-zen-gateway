@@ -19,7 +19,7 @@ from datetime import datetime
 
 from opencode_zen.mcp_tools import (
     generate_random_id,
-    call_kiro_mcp_api,
+    call_opencode_zen_mcp_api,
     generate_search_summary,
     extract_query_from_messages,
     handle_native_web_search,
@@ -88,7 +88,7 @@ class TestIDGeneration:
 # Tests for MCP API Call
 # ==================================================================================================
 
-class TestCallKiroMCPAPI:
+class TestCallOpenCodeMCPAPI:
     """Tests for MCP API calls."""
     
     @pytest.mark.asyncio
@@ -133,9 +133,9 @@ class TestCallKiroMCPAPI:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value.post = mock_post
         
-        print("Action: Calling call_kiro_mcp_api...")
-        with patch("kiro.mcp_tools.httpx.AsyncClient", return_value=mock_client):
-            tool_use_id, results = await call_kiro_mcp_api(query, mock_auth_manager)
+        print("Action: Calling call_opencode_zen_mcp_api...")
+        with patch("opencode_zen.mcp_tools.httpx.AsyncClient", return_value=mock_client):
+            tool_use_id, results = await call_opencode_zen_mcp_api(query, mock_auth_manager)
         
         print(f"Comparing tool_use_id: Got '{tool_use_id}'")
         assert tool_use_id is not None
@@ -171,9 +171,9 @@ class TestCallKiroMCPAPI:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value.post = mock_post
         
-        print("Action: Calling call_kiro_mcp_api...")
-        with patch("kiro.mcp_tools.httpx.AsyncClient", return_value=mock_client):
-            tool_use_id, results = await call_kiro_mcp_api(query, mock_auth_manager)
+        print("Action: Calling call_opencode_zen_mcp_api...")
+        with patch("opencode_zen.mcp_tools.httpx.AsyncClient", return_value=mock_client):
+            tool_use_id, results = await call_opencode_zen_mcp_api(query, mock_auth_manager)
         
         print(f"Comparing result: Expected (None, None), Got ({tool_use_id}, {results})")
         assert tool_use_id is None
@@ -195,9 +195,9 @@ class TestCallKiroMCPAPI:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value.post = mock_post
         
-        print("Action: Calling call_kiro_mcp_api...")
-        with patch("kiro.mcp_tools.httpx.AsyncClient", return_value=mock_client):
-            tool_use_id, results = await call_kiro_mcp_api(query, mock_auth_manager)
+        print("Action: Calling call_opencode_zen_mcp_api...")
+        with patch("opencode_zen.mcp_tools.httpx.AsyncClient", return_value=mock_client):
+            tool_use_id, results = await call_opencode_zen_mcp_api(query, mock_auth_manager)
         
         print(f"Comparing result: Expected (None, None), Got ({tool_use_id}, {results})")
         assert tool_use_id is None
@@ -218,9 +218,9 @@ class TestCallKiroMCPAPI:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value.post = mock_post
         
-        print("Action: Calling call_kiro_mcp_api...")
-        with patch("kiro.mcp_tools.httpx.AsyncClient", return_value=mock_client):
-            tool_use_id, results = await call_kiro_mcp_api(query, mock_auth_manager)
+        print("Action: Calling call_opencode_zen_mcp_api...")
+        with patch("opencode_zen.mcp_tools.httpx.AsyncClient", return_value=mock_client):
+            tool_use_id, results = await call_opencode_zen_mcp_api(query, mock_auth_manager)
         
         print(f"Comparing result: Expected (None, None), Got ({tool_use_id}, {results})")
         assert tool_use_id is None
@@ -243,9 +243,9 @@ class TestCallKiroMCPAPI:
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value.post = mock_post
         
-        print("Action: Calling call_kiro_mcp_api...")
-        with patch("kiro.mcp_tools.httpx.AsyncClient", return_value=mock_client):
-            tool_use_id, results = await call_kiro_mcp_api(query, mock_auth_manager)
+        print("Action: Calling call_opencode_zen_mcp_api...")
+        with patch("opencode_zen.mcp_tools.httpx.AsyncClient", return_value=mock_client):
+            tool_use_id, results = await call_opencode_zen_mcp_api(query, mock_auth_manager)
         
         print(f"Comparing result: Expected (None, None), Got ({tool_use_id}, {results})")
         assert tool_use_id is None

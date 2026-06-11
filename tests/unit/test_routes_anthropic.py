@@ -730,8 +730,8 @@ class TestMessagesOptionalParams:
         
         mock_response.aiter_bytes = mock_aiter_bytes
         
-        with patch('kiro.routes_anthropic.stream_kiro_to_anthropic', mock_stream), \
-             patch('kiro.http_client.KiroHttpClient.request_with_retry', return_value=mock_response):
+        with patch('opencode_zen.routes_anthropic.stream_opencode_zen_to_anthropic', mock_stream), \
+             patch('opencode_zen.http_client.OpenCodeHttpClient.request_with_retry', return_value=mock_response):
             response = test_client.post(
                 "/v1/messages",
                 headers={"x-api-key": valid_proxy_api_key},
@@ -1001,10 +1001,10 @@ class TestAnthropicHTTPClientSelection:
     requests use shared client for connection pooling.
     """
     
-    @patch('kiro.routes_anthropic.KiroHttpClient')
+    @patch('opencode_zen.routes_anthropic.OpenCodeHttpClient')
     def test_streaming_uses_per_request_client(
         self,
-        mock_kiro_http_client_class,
+        mock_opencode_zen_http_client_class,
         test_client,
         valid_proxy_api_key
     ):
@@ -1020,7 +1020,7 @@ class TestAnthropicHTTPClientSelection:
             side_effect=Exception("Network blocked")
         )
         mock_client_instance.close = AsyncMock()
-        mock_kiro_http_client_class.return_value = mock_client_instance
+        mock_opencode_zen_http_client_class.return_value = mock_client_instance
         
         print("Action: POST /v1/messages with stream=true...")
         try:
@@ -1037,18 +1037,18 @@ class TestAnthropicHTTPClientSelection:
         except Exception:
             pass
         
-        print("Checking: KiroHttpClient(shared_client=None)...")
-        assert mock_kiro_http_client_class.called
-        call_args = mock_kiro_http_client_class.call_args
+        print("Checking: OpenCodeHttpClient(shared_client=None)...")
+        assert mock_opencode_zen_http_client_class.called
+        call_args = mock_opencode_zen_http_client_class.call_args
         print(f"Call args: {call_args}")
         assert call_args[1]['shared_client'] is None, \
             "Streaming should use per-request client"
         print("✅ Anthropic streaming correctly uses per-request client")
     
-    @patch('kiro.routes_anthropic.KiroHttpClient')
+    @patch('opencode_zen.routes_anthropic.OpenCodeHttpClient')
     def test_non_streaming_uses_shared_client(
         self,
-        mock_kiro_http_client_class,
+        mock_opencode_zen_http_client_class,
         test_client,
         valid_proxy_api_key
     ):
@@ -1064,7 +1064,7 @@ class TestAnthropicHTTPClientSelection:
             side_effect=Exception("Network blocked")
         )
         mock_client_instance.close = AsyncMock()
-        mock_kiro_http_client_class.return_value = mock_client_instance
+        mock_opencode_zen_http_client_class.return_value = mock_client_instance
         
         print("Action: POST /v1/messages with stream=false...")
         try:
@@ -1081,9 +1081,9 @@ class TestAnthropicHTTPClientSelection:
         except Exception:
             pass
         
-        print("Checking: KiroHttpClient(shared_client=app.state.http_client)...")
-        assert mock_kiro_http_client_class.called
-        call_args = mock_kiro_http_client_class.call_args
+        print("Checking: OpenCodeHttpClient(shared_client=app.state.http_client)...")
+        assert mock_opencode_zen_http_client_class.called
+        call_args = mock_opencode_zen_http_client_class.call_args
         print(f"Call args: {call_args}")
         assert call_args[1]['shared_client'] is not None, \
             "Non-streaming should use shared client"

@@ -17,7 +17,7 @@ from opencode_zen.payload_guards import (
 
 
 def _make_payload(num_pairs=5, content_size=100):
-    """Helper: build a minimal Kiro-shaped payload with N user/assistant pairs."""
+    """Helper: build a minimal OpenCode-shaped payload with N user/assistant pairs."""
     history = []
     for i in range(num_pairs):
         history.append({

@@ -1,6 +1,6 @@
-# Tests for Kiro Gateway
+# Tests for OpenCode Gateway
 
-A comprehensive set of unit and integration tests for Kiro Gateway, providing full coverage of all system components.
+A comprehensive set of unit and integration tests for OpenCode Gateway, providing full coverage of all system components.
 
 ## Testing Philosophy: Complete Network Isolation
 
@@ -49,7 +49,7 @@ pytest tests/integration/ -v
 pytest tests/unit/test_auth_manager.py -v
 
 # Run a specific test
-pytest tests/unit/test_auth_manager.py::TestKiroAuthManagerInitialization::test_initialization_stores_credentials -v
+pytest tests/unit/test_auth_manager.py::TestOpenCodeAuthManagerInitialization::test_initialization_stores_credentials -v
 ```
 
 ### pytest Options
@@ -74,17 +74,17 @@ tests/
 ├── unit/                            # Unit tests for individual components
 │   ├── test_account_errors.py      # Account System error classification (FATAL vs RECOVERABLE)
 │   ├── test_account_manager.py     # AccountManager tests (failover, Circuit Breaker, sticky behavior, state persistence)
-│   ├── test_auth_manager.py        # KiroAuthManager tests (including api_region parameter priority)
+│   ├── test_auth_manager.py        # OpenCodeAuthManager tests (including api_region parameter priority)
 │   ├── test_cache.py               # ModelInfoCache tests (is_valid_model, add_hidden_model)
 │   ├── test_config.py              # Configuration tests (SERVER_HOST, SERVER_PORT, LOG_LEVEL, Account System constants)
-│   ├── test_converters_anthropic.py # Anthropic Messages API → Kiro converter tests
+│   ├── test_converters_anthropic.py # Anthropic Messages API → OpenCode converter tests
 │   ├── test_converters_core.py     # Shared conversion logic tests (UnifiedMessage, merging, truncation recovery system prompt)
-│   ├── test_converters_openai.py   # OpenAI Chat API → Kiro converter tests
+│   ├── test_converters_openai.py   # OpenAI Chat API → OpenCode converter tests
 │   ├── test_debug_logger.py        # DebugLogger tests (off/errors/all modes)
 │   ├── test_debug_middleware.py    # DebugLoggerMiddleware tests (endpoint filtering, mode handling)
 │   ├── test_exceptions.py          # Exception handlers tests (validation_exception_handler, sanitize_validation_errors)
-│   ├── test_http_client.py         # KiroHttpClient tests (including params parameter for Account System)
-│   ├── test_kiro_errors.py         # Kiro API error enhancement tests (CONTENT_LENGTH_EXCEEDS_THRESHOLD, unknown errors)
+│   ├── test_http_client.py         # OpenCodeHttpClient tests (including params parameter for Account System)
+│   ├── test_opencode_zen_errors.py         # OpenCode API error enhancement tests (CONTENT_LENGTH_EXCEEDS_THRESHOLD, unknown errors)
 │   ├── test_main_cli.py            # CLI argument parsing tests (--host, --port)
 │   ├── test_main_lifespan.py       # Application lifespan tests (Account System initialization, legacy migration, background tasks)
 │   ├── test_mcp_tools.py           # MCP Tools tests (WebSearch: ID generation, MCP API calls, SSE emulation, query extraction)
@@ -147,7 +147,7 @@ When adding new tests:
 
 ```bash
 # Make sure you're in project root
-cd /path/to/kiro-gateway
+cd /path/to/opencode-zen-gateway
 
 # pytest.ini already contains pythonpath = .
 # Just run pytest

@@ -339,7 +339,7 @@ class TestModelsEndpoint:
         print(f"Model IDs: {model_ids}")
         
         # At minimum, hidden models should be present
-        # (even if Kiro API cache is empty)
+        # (even if OpenCode API cache is empty)
         assert len(model_ids) >= 1, "Expected at least one model (hidden models)"
     
     def test_models_format_is_openai_compatible(self, test_client, valid_proxy_api_key):
@@ -892,10 +892,10 @@ class TestHTTPClientSelection:
     requests use shared client for connection pooling.
     """
     
-    @patch('kiro.routes_openai.KiroHttpClient')
+    @patch('opencode_zen.routes_openai.OpenCodeHttpClient')
     def test_streaming_uses_per_request_client(
         self,
-        mock_kiro_http_client_class,
+        mock_opencode_zen_http_client_class,
         test_client,
         valid_proxy_api_key
     ):
@@ -911,7 +911,7 @@ class TestHTTPClientSelection:
             side_effect=Exception("Network blocked")
         )
         mock_client_instance.close = AsyncMock()
-        mock_kiro_http_client_class.return_value = mock_client_instance
+        mock_opencode_zen_http_client_class.return_value = mock_client_instance
         
         print("Action: POST with stream=true...")
         try:
@@ -927,18 +927,18 @@ class TestHTTPClientSelection:
         except Exception:
             pass
         
-        print("Checking: KiroHttpClient(shared_client=None)...")
-        assert mock_kiro_http_client_class.called
-        call_args = mock_kiro_http_client_class.call_args
+        print("Checking: OpenCodeHttpClient(shared_client=None)...")
+        assert mock_opencode_zen_http_client_class.called
+        call_args = mock_opencode_zen_http_client_class.call_args
         print(f"Call args: {call_args}")
         assert call_args[1]['shared_client'] is None, \
             "Streaming should use per-request client"
         print("✅ Streaming correctly uses per-request client")
     
-    @patch('kiro.routes_openai.KiroHttpClient')
+    @patch('opencode_zen.routes_openai.OpenCodeHttpClient')
     def test_non_streaming_uses_shared_client(
         self,
-        mock_kiro_http_client_class,
+        mock_opencode_zen_http_client_class,
         test_client,
         valid_proxy_api_key
     ):
@@ -954,7 +954,7 @@ class TestHTTPClientSelection:
             side_effect=Exception("Network blocked")
         )
         mock_client_instance.close = AsyncMock()
-        mock_kiro_http_client_class.return_value = mock_client_instance
+        mock_opencode_zen_http_client_class.return_value = mock_client_instance
         
         print("Action: POST with stream=false...")
         try:
@@ -970,9 +970,9 @@ class TestHTTPClientSelection:
         except Exception:
             pass
         
-        print("Checking: KiroHttpClient(shared_client=app.state.http_client)...")
-        assert mock_kiro_http_client_class.called
-        call_args = mock_kiro_http_client_class.call_args
+        print("Checking: OpenCodeHttpClient(shared_client=app.state.http_client)...")
+        assert mock_opencode_zen_http_client_class.called
+        call_args = mock_opencode_zen_http_client_class.call_args
         print(f"Call args: {call_args}")
         assert call_args[1]['shared_client'] is not None, \
             "Non-streaming should use shared client"

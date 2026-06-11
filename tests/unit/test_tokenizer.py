@@ -164,7 +164,7 @@ class TestCountTokensFallback:
         print("Test: Fallback without tiktoken...")
         
         # Mock _get_encoding to return None
-        with patch('kiro.tokenizer._get_encoding', return_value=None):
+        with patch('opencode_zen.tokenizer._get_encoding', return_value=None):
             result = count_tokens("Hello world test")
             print(f"Result: {result}")
             
@@ -181,7 +181,7 @@ class TestCountTokensFallback:
         """
         print("Test: Fallback without correction...")
         
-        with patch('kiro.tokenizer._get_encoding', return_value=None):
+        with patch('opencode_zen.tokenizer._get_encoding', return_value=None):
             result = count_tokens("Test", apply_claude_correction=False)
             print(f"Result: {result}")
             

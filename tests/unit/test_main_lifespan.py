@@ -162,7 +162,7 @@ class TestLifespanLegacyFallback:
         Test 94: Приоритет SQLite > JSON > refresh_token
         
         What it does: Verifies credential source priority during migration
-        Purpose: Ensure correct priority order matches KiroAuthManager
+        Purpose: Ensure correct priority order matches OpenCodeAuthManager
         """
         print("\n=== Test 94: Migration priority SQLite > JSON > refresh_token ===")
         

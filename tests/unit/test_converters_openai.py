@@ -6,7 +6,7 @@ Unit tests for converters_openai module.
 Tests for OpenAI-specific conversion logic:
 - Converting OpenAI messages to unified format
 - Converting OpenAI tools to unified format
-- Building Kiro payload from OpenAI requests
+- Building OpenCode payload from OpenAI requests
 """
 
 import pytest
@@ -667,7 +667,7 @@ class TestConvertOpenAIToolsToUnified:
 # Tests for build_opencode_payload
 # ==================================================================================================
 
-class TestBuildKiroPayload:
+class TestBuildOpenCodePayload:
     """Tests for build_opencode_payload function."""
     
     def test_builds_simple_payload(self):
@@ -785,8 +785,8 @@ class TestBuildKiroPayload:
         )
 
         print("Action: Building payload (with fake reasoning and truncation recovery disabled)...")
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', False):
-            with patch('kiro.config.TRUNCATION_RECOVERY', False):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', False):
+            with patch('opencode_zen.config.TRUNCATION_RECOVERY', False):
                 result = build_opencode_payload(request, "conv-123", "")
 
         print(f"Result: {result}")
@@ -795,12 +795,12 @@ class TestBuildKiroPayload:
     
     def test_normalizes_model_id_correctly(self):
         """
-        What it does: Verifies normalization of external model ID to Kiro format.
+        What it does: Verifies normalization of external model ID to OpenCode format.
         Purpose: Ensure model name normalization is applied (dashes→dots, strip dates).
         
         Note: The new Dynamic Model Resolution System normalizes model names
         (e.g., claude-sonnet-4-5 → claude-sonnet-4.5) instead of mapping to
-        internal IDs. Kiro API accepts the normalized format directly.
+        internal IDs. OpenCode API accepts the normalized format directly.
         """
         print("Setup: Request with external model ID...")
         request = ChatCompletionRequest(
@@ -880,8 +880,8 @@ class TestBuildKiroPayload:
         )
         
         print("Action: Building payload with FAKE_REASONING_ENABLED=True...")
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', True):
-            with patch('kiro.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', True):
+            with patch('opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
                 result = build_opencode_payload(request, "conv-123", "")
         
         current_msg = result["conversationState"]["currentMessage"]["userInputMessage"]
@@ -907,8 +907,8 @@ class TestBuildKiroPayload:
         )
         
         print("Action: Building payload with FAKE_REASONING_ENABLED=True...")
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', True):
-            with patch('kiro.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', True):
+            with patch('opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
                 result = build_opencode_payload(request, "conv-123", "")
         
         current_msg = result["conversationState"]["currentMessage"]["userInputMessage"]
@@ -1030,7 +1030,7 @@ class TestToolDescriptionHandling:
         Purpose: Ensure empty description is replaced with "Tool: {name}".
         
         This is a critical test for a Cline bug where tool focus_chain had
-        empty description "", which caused a 400 error from Kiro API.
+        empty description "", which caused a 400 error from OpenCode API.
         """
         print("Setup: Tool with empty description...")
         request = ChatCompletionRequest(
@@ -1229,16 +1229,16 @@ class TestToolDescriptionHandling:
 # Integration tests for full flow
 # ==================================================================================================
 
-class TestBuildKiroPayloadToolCallsIntegration:
+class TestBuildOpenCodePayloadToolCallsIntegration:
     """
     Integration tests for build_opencode_payload with tool_calls.
-    Tests full flow from OpenAI format to Kiro format.
+    Tests full flow from OpenAI format to OpenCode format.
     """
     
     def test_multiple_assistant_tool_calls_with_results(self):
         """
         What it does: Verifies full scenario with multiple assistant tool_calls and their results.
-        Purpose: Ensure all toolUses and toolResults are correctly linked in Kiro payload.
+        Purpose: Ensure all toolUses and toolResults are correctly linked in OpenCode payload.
 
         This is an integration test for a Codex CLI bug where multiple assistant
         messages with tool_calls were sent in a row, followed by tool results.
@@ -1285,7 +1285,7 @@ class TestBuildKiroPayloadToolCallsIntegration:
             ]
         )
         
-        print("Action: Building Kiro payload...")
+        print("Action: Building OpenCode payload...")
         result = build_opencode_payload(request, "conv-123", "arn:aws:test")
         
         print(f"Result: {result}")
@@ -1322,7 +1322,7 @@ class TestBuildKiroPayloadToolCallsIntegration:
         print(f"Comparing toolResults count: Expected 2, Got {len(tool_results)}")
         assert len(tool_results) == 2, f"Should have 2 toolResults, got {len(tool_results)}"
         
-        # Note: tool_results in Kiro payload use camelCase (toolUseId)
+        # Note: tool_results in OpenCode payload use camelCase (toolUseId)
         tool_result_ids = [tr["toolUseId"] for tr in tool_results]
         print(f"ToolResult IDs: {tool_result_ids}")
         assert "tooluse_first" in tool_result_ids
@@ -1352,7 +1352,7 @@ class TestBuildKiroPayloadToolCallsIntegration:
         )
         
         print("Action: Building payload...")
-        with patch('kiro.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 10000):
+        with patch('opencode_zen.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 10000):
             result = build_opencode_payload(request, "conv-123", "")
         
         print("Checking that system prompt contains tool documentation...")
@@ -1837,7 +1837,7 @@ class TestExtractThinkingConfigFromOpenAI:
         assert config.budget_tokens == expected_budget
 
 
-class TestBuildKiroPayloadIntegration:
+class TestBuildOpenCodePayloadIntegration:
     """Integration tests for build_opencode_payload with thinking config."""
     
     def test_extracts_and_passes_thinking_config(self, monkeypatch):
@@ -1846,8 +1846,8 @@ class TestBuildKiroPayloadIntegration:
         Purpose: Ensure end-to-end thinking configuration flow works
         """
         print("Setting up mocks...")
-        monkeypatch.setattr("kiro.converters_core.FAKE_REASONING_ENABLED", True)
-        monkeypatch.setattr("kiro.converters_core.FAKE_REASONING_BUDGET_CAP", 10000)
+        monkeypatch.setattr("opencode_zen.converters_core.FAKE_REASONING_ENABLED", True)
+        monkeypatch.setattr("opencode_zen.converters_core.FAKE_REASONING_BUDGET_CAP", 10000)
         
         print("Creating request with reasoning_effort='medium', max_tokens=8000...")
         request = ChatCompletionRequest(

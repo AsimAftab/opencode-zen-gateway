@@ -107,7 +107,7 @@ class TestValidationExceptionHandler:
         ]
         
         # Patch debug_logger at the source module
-        with patch('kiro.debug_logger.debug_logger') as mock_logger:
+        with patch('opencode_zen.debug_logger.debug_logger') as mock_logger:
             print("Action: Calling validation_exception_handler...")
             response = await validation_exception_handler(mock_request, mock_exc)
             
@@ -132,7 +132,7 @@ class TestValidationExceptionHandler:
         ]
         
         # Patch debug_logger at the source module
-        with patch('kiro.debug_logger.debug_logger') as mock_logger:
+        with patch('opencode_zen.debug_logger.debug_logger') as mock_logger:
             print("Action: Calling validation_exception_handler...")
             await validation_exception_handler(mock_request, mock_exc)
             
@@ -159,7 +159,7 @@ class TestValidationExceptionHandler:
             {"type": "missing", "loc": ["body", "model"], "msg": "Field required", "input": {}}
         ]
         
-        with patch('kiro.debug_logger.debug_logger'):
+        with patch('opencode_zen.debug_logger.debug_logger'):
             print("Action: Calling validation_exception_handler...")
             response = await validation_exception_handler(mock_request, mock_exc)
             
@@ -191,7 +191,7 @@ class TestValidationExceptionHandler:
             {"type": "json_invalid", "loc": ["body"], "msg": "Invalid", "input": {}}
         ]
         
-        with patch('kiro.debug_logger.debug_logger'):
+        with patch('opencode_zen.debug_logger.debug_logger'):
             print("Action: Calling validation_exception_handler...")
             response = await validation_exception_handler(mock_request, mock_exc)
             
@@ -222,8 +222,8 @@ class TestValidationExceptionHandlerLogging:
             {"type": "missing", "loc": ["body", "model"], "msg": "Field required", "input": {}}
         ]
         
-        with patch('kiro.debug_logger.debug_logger'):
-            with patch('kiro.exceptions.logger') as mock_logger:
+        with patch('opencode_zen.debug_logger.debug_logger'):
+            with patch('opencode_zen.exceptions.logger') as mock_logger:
                 print("Action: Calling validation_exception_handler...")
                 await validation_exception_handler(mock_request, mock_exc)
                 
@@ -250,7 +250,7 @@ class TestValidationExceptionHandlerEdgeCases:
         mock_exc = MagicMock(spec=RequestValidationError)
         mock_exc.errors.return_value = []
         
-        with patch('kiro.debug_logger.debug_logger'):
+        with patch('opencode_zen.debug_logger.debug_logger'):
             print("Action: Calling validation_exception_handler...")
             response = await validation_exception_handler(mock_request, mock_exc)
             
@@ -280,7 +280,7 @@ class TestValidationExceptionHandlerEdgeCases:
             {"type": "missing", "loc": ["body", "model"], "msg": "Field required", "input": {}}
         ]
         
-        with patch('kiro.debug_logger.debug_logger'):
+        with patch('opencode_zen.debug_logger.debug_logger'):
             print("Action: Calling validation_exception_handler...")
             response = await validation_exception_handler(mock_request, mock_exc)
             

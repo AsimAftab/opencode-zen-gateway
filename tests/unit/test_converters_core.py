@@ -18,22 +18,22 @@ from unittest.mock import patch
 from opencode_zen.converters_core import (
     extract_text_content,
     extract_images_from_content,
-    convert_images_to_kiro_format,
+    convert_images_to_opencode_zen_format,
     merge_adjacent_messages,
     ensure_first_message_is_user,
     normalize_message_roles,
     ensure_alternating_roles,
     ensure_assistant_before_tool_results,
     strip_all_tool_content,
-    build_kiro_history,
+    build_opencode_zen_history,
     build_opencode_payload,
     process_tools_with_long_descriptions,
     inject_thinking_tags,
     extract_tool_results_from_content,
     extract_tool_uses_from_message,
     sanitize_json_schema,
-    convert_tools_to_kiro_format,
-    convert_tool_results_to_kiro_format,
+    convert_tools_to_opencode_zen_format,
+    convert_tool_results_to_opencode_zen_format,
     tool_calls_to_text,
     tool_results_to_text,
     UnifiedMessage,
@@ -474,7 +474,7 @@ class TestExtractImagesFromContent:
         What it does: Verifies URL-based images are skipped with warning.
         Purpose: Ensure URL images don't crash but are logged as unsupported.
         
-        URL-based images require fetching and are not supported by Kiro API directly.
+        URL-based images require fetching and are not supported by OpenCode API directly.
         """
         print("Setup: URL-based image content...")
         content = [
@@ -737,29 +737,29 @@ class TestExtractImagesFromContent:
 
 
 # ==================================================================================================
-# Tests for convert_images_to_kiro_format
+# Tests for convert_images_to_opencode_zen_format
 # ==================================================================================================
 
-class TestConvertImagesToKiroFormat:
+class TestConvertImagesToOpenCodeFormat:
     """
-    Tests for convert_images_to_kiro_format function.
+    Tests for convert_images_to_opencode_zen_format function.
     
-    This function converts unified images to Kiro API format.
+    This function converts unified images to OpenCode API format.
     
     Unified format: [{"media_type": "image/jpeg", "data": "base64..."}]
-    Kiro format: [{"format": "jpeg", "source": {"bytes": "base64..."}}]
+    OpenCode format: [{"format": "jpeg", "source": {"bytes": "base64..."}}]
     """
     
     def test_converts_single_image(self):
         """
         What it does: Verifies conversion of a single image.
-        Purpose: Ensure basic conversion from unified to Kiro format works.
+        Purpose: Ensure basic conversion from unified to OpenCode format works.
         """
         print("Setup: Single image in unified format...")
         images = [{"media_type": "image/jpeg", "data": TEST_IMAGE_BASE64}]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_images_to_kiro_format(images)
+        print("Action: Converting to OpenCode format...")
+        result = convert_images_to_opencode_zen_format(images)
         
         print(f"Result: {result}")
         print(f"Comparing count: Expected 1, Got {len(result)}")
@@ -783,8 +783,8 @@ class TestConvertImagesToKiroFormat:
             {"media_type": "image/gif", "data": "gif_data"}
         ]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_images_to_kiro_format(images)
+        print("Action: Converting to OpenCode format...")
+        result = convert_images_to_opencode_zen_format(images)
         
         print(f"Result: {result}")
         print(f"Comparing count: Expected 3, Got {len(result)}")
@@ -802,8 +802,8 @@ class TestConvertImagesToKiroFormat:
         """
         print("Setup: None images...")
         
-        print("Action: Converting to Kiro format...")
-        result = convert_images_to_kiro_format(None)
+        print("Action: Converting to OpenCode format...")
+        result = convert_images_to_opencode_zen_format(None)
         
         print(f"Comparing result: Expected [], Got {result}")
         assert result == []
@@ -815,8 +815,8 @@ class TestConvertImagesToKiroFormat:
         """
         print("Setup: Empty images list...")
         
-        print("Action: Converting to Kiro format...")
-        result = convert_images_to_kiro_format([])
+        print("Action: Converting to OpenCode format...")
+        result = convert_images_to_opencode_zen_format([])
         
         print(f"Comparing result: Expected [], Got {result}")
         assert result == []
@@ -832,8 +832,8 @@ class TestConvertImagesToKiroFormat:
             {"media_type": "image/png", "data": "valid_data"}
         ]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_images_to_kiro_format(images)
+        print("Action: Converting to OpenCode format...")
+        result = convert_images_to_opencode_zen_format(images)
         
         print(f"Result: {result}")
         print(f"Comparing count: Expected 1, Got {len(result)}")
@@ -853,8 +853,8 @@ class TestConvertImagesToKiroFormat:
             {"media_type": "image/webp", "data": "data4"}
         ]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_images_to_kiro_format(images)
+        print("Action: Converting to OpenCode format...")
+        result = convert_images_to_opencode_zen_format(images)
         
         print(f"Result formats: {[r['format'] for r in result]}")
         assert result[0]["format"] == "jpeg"
@@ -870,8 +870,8 @@ class TestConvertImagesToKiroFormat:
         print("Setup: Media type without slash...")
         images = [{"media_type": "jpeg", "data": "data"}]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_images_to_kiro_format(images)
+        print("Action: Converting to OpenCode format...")
+        result = convert_images_to_opencode_zen_format(images)
         
         print(f"Result: {result}")
         assert len(result) == 1
@@ -885,8 +885,8 @@ class TestConvertImagesToKiroFormat:
         print("Setup: Image without media_type...")
         images = [{"data": "some_data"}]  # No media_type
         
-        print("Action: Converting to Kiro format...")
-        result = convert_images_to_kiro_format(images)
+        print("Action: Converting to OpenCode format...")
+        result = convert_images_to_opencode_zen_format(images)
         
         print(f"Result: {result}")
         assert len(result) == 1
@@ -901,8 +901,8 @@ class TestConvertImagesToKiroFormat:
         large_data = "A" * 100000  # 100KB of data
         images = [{"media_type": "image/png", "data": large_data}]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_images_to_kiro_format(images)
+        print("Action: Converting to OpenCode format...")
+        result = convert_images_to_opencode_zen_format(images)
         
         print(f"Result data length: {len(result[0]['source']['bytes'])}")
         assert len(result[0]["source"]["bytes"]) == 100000
@@ -914,17 +914,17 @@ class TestConvertImagesToKiroFormat:
     def test_strips_data_url_prefix_jpeg(self):
         """
         What it does: Verifies that data URL prefix is stripped from JPEG image data.
-        Purpose: Ensure Kiro API receives pure base64 without the data URL prefix (Issue #32 fix).
+        Purpose: Ensure OpenCode API receives pure base64 without the data URL prefix (Issue #32 fix).
         
         Some clients send the full data URL in the data field instead of pure base64.
-        Kiro API expects pure base64 without the "data:image/jpeg;base64," prefix.
+        OpenCode API expects pure base64 without the "data:image/jpeg;base64," prefix.
         """
         print("Setup: Image with data URL prefix (JPEG)...")
         pure_base64 = "/9j/4AAQSkZJRg=="  # Sample JPEG base64
         images = [{"media_type": "image/jpeg", "data": f"data:image/jpeg;base64,{pure_base64}"}]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_images_to_kiro_format(images)
+        print("Action: Converting to OpenCode format...")
+        result = convert_images_to_opencode_zen_format(images)
         
         print(f"Result: {result}")
         print(f"Comparing bytes: Expected '{pure_base64}', Got '{result[0]['source']['bytes']}'")
@@ -940,8 +940,8 @@ class TestConvertImagesToKiroFormat:
         pure_base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
         images = [{"media_type": "image/png", "data": f"data:image/png;base64,{pure_base64}"}]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_images_to_kiro_format(images)
+        print("Action: Converting to OpenCode format...")
+        result = convert_images_to_opencode_zen_format(images)
         
         print(f"Result: {result}")
         print(f"Comparing bytes: Expected pure base64, Got '{result[0]['source']['bytes'][:50]}...'")
@@ -961,8 +961,8 @@ class TestConvertImagesToKiroFormat:
         # Original media_type says jpeg, but data URL says gif
         images = [{"media_type": "image/jpeg", "data": f"data:image/gif;base64,{pure_base64}"}]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_images_to_kiro_format(images)
+        print("Action: Converting to OpenCode format...")
+        result = convert_images_to_opencode_zen_format(images)
         
         print(f"Result: {result}")
         print("Checking that media_type from data URL is used...")
@@ -981,8 +981,8 @@ class TestConvertImagesToKiroFormat:
         malformed_data = "data:image/jpeg;base64_without_comma"
         images = [{"media_type": "image/jpeg", "data": malformed_data}]
         
-        print("Action: Converting to Kiro format (should handle gracefully)...")
-        result = convert_images_to_kiro_format(images)
+        print("Action: Converting to OpenCode format (should handle gracefully)...")
+        result = convert_images_to_opencode_zen_format(images)
         
         print(f"Result: {result}")
         # The function should still produce output, using the malformed data as-is
@@ -1003,8 +1003,8 @@ class TestConvertImagesToKiroFormat:
         pure_base64 = TEST_IMAGE_BASE64
         images = [{"media_type": "image/jpeg", "data": pure_base64}]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_images_to_kiro_format(images)
+        print("Action: Converting to OpenCode format...")
+        result = convert_images_to_opencode_zen_format(images)
         
         print(f"Result: {result}")
         print("Checking that pure base64 is preserved unchanged...")
@@ -1020,8 +1020,8 @@ class TestConvertImagesToKiroFormat:
         pure_base64 = "UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA="
         images = [{"media_type": "image/webp", "data": f"data:image/webp;base64,{pure_base64}"}]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_images_to_kiro_format(images)
+        print("Action: Converting to OpenCode format...")
+        result = convert_images_to_opencode_zen_format(images)
         
         print(f"Result: {result}")
         assert result[0]["source"]["bytes"] == pure_base64
@@ -1034,13 +1034,13 @@ class TestConvertImagesToKiroFormat:
         
         Note: The function strips the prefix but doesn't re-check for empty data after stripping.
         This means an image with "data:image/jpeg;base64," will result in empty bytes.
-        This is acceptable behavior as Kiro API will handle the validation.
+        This is acceptable behavior as OpenCode API will handle the validation.
         """
         print("Setup: Data URL with empty base64 part...")
         images = [{"media_type": "image/jpeg", "data": "data:image/jpeg;base64,"}]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_images_to_kiro_format(images)
+        print("Action: Converting to OpenCode format...")
+        result = convert_images_to_opencode_zen_format(images)
         
         print(f"Result: {result}")
         print("Checking that image is converted (with empty bytes)...")
@@ -1297,7 +1297,7 @@ class TestEnsureFirstMessageIsUser:
     """
     Tests for ensure_first_message_is_user function.
     
-    This function ensures that conversations start with a user message, as required by Kiro API.
+    This function ensures that conversations start with a user message, as required by OpenCode API.
     If the first message is from assistant (or any non-user role), a minimal synthetic user
     message is prepended. This fixes issue #60 where conversations starting with assistant
     messages cause "Improperly formed request" errors.
@@ -1488,7 +1488,7 @@ class TestNormalizeMessageRoles:
     Tests for normalize_message_roles function.
     
     This function converts all unknown roles (developer, system, moderator, etc.)
-    to 'user' role to maintain Kiro API compatibility. This is part of the fix
+    to 'user' role to maintain OpenCode API compatibility. This is part of the fix
     for Issue #64 where Codex App sends 'developer' role messages.
     """
     
@@ -1496,7 +1496,7 @@ class TestNormalizeMessageRoles:
         """
         What it does: Verifies conversion of 'developer' role to 'user'.
         Purpose: Fix for Issue #64 - Codex App uses 'developer' role which must be
-                 converted to 'user' to maintain Kiro API compatibility.
+                 converted to 'user' to maintain OpenCode API compatibility.
         """
         print("Setup: Message with 'developer' role (Codex App)...")
         messages = [
@@ -1693,7 +1693,7 @@ class TestEnsureAlternatingRoles:
     def test_inserts_synthetic_assistant_between_two_consecutive_users(self):
         """
         What it does: Verifies insertion of synthetic assistant between two user messages.
-        Purpose: Ensure Kiro API requirement of alternating roles is maintained.
+        Purpose: Ensure OpenCode API requirement of alternating roles is maintained.
         """
         print("Setup: Two consecutive user messages...")
         messages = [
@@ -1991,7 +1991,7 @@ class TestEnsureAssistantBeforeToolResults:
     This function handles the case when clients (like Cline/Roo/Cursor) send truncated
     conversations with tool_results but without the preceding assistant message
     that contains the tool_calls. Since we don't know the original tool name,
-    we strip the orphaned tool_results to avoid Kiro API rejection.
+    we strip the orphaned tool_results to avoid OpenCode API rejection.
     """
     
     def test_returns_empty_list_for_empty_input(self):
@@ -2566,7 +2566,7 @@ class TestSanitizeJsonSchema:
     """
     Tests for sanitize_json_schema function.
     
-    This function cleans JSON Schema from fields that Kiro API doesn't accept:
+    This function cleans JSON Schema from fields that OpenCode API doesn't accept:
     - Empty required arrays []
     - additionalProperties
     """
@@ -2603,7 +2603,7 @@ class TestSanitizeJsonSchema:
         Purpose: Ensure required: [] is removed from schema.
         
         This is a critical test for a bug where tools with required: []
-        caused a 400 "Improperly formed request" error from Kiro API.
+        caused a 400 "Improperly formed request" error from OpenCode API.
         """
         print("Setup: Schema with empty required...")
         schema = {
@@ -2646,7 +2646,7 @@ class TestSanitizeJsonSchema:
         What it does: Verifies removal of additionalProperties.
         Purpose: Ensure additionalProperties is removed from schema.
         
-        Kiro API doesn't support additionalProperties in JSON Schema.
+        OpenCode API doesn't support additionalProperties in JSON Schema.
         """
         print("Setup: Schema with additionalProperties...")
         schema = {
@@ -2852,34 +2852,34 @@ class TestExtractToolResults:
 
 
 # ==================================================================================================
-# Tests for convert_tool_results_to_kiro_format
+# Tests for convert_tool_results_to_opencode_zen_format
 # ==================================================================================================
 
-class TestConvertToolResultsToKiroFormat:
+class TestConvertToolResultsToOpenCodeFormat:
     """
-    Tests for convert_tool_results_to_kiro_format function.
+    Tests for convert_tool_results_to_opencode_zen_format function.
     
-    This function converts unified tool results format (snake_case) to Kiro API format (camelCase).
+    This function converts unified tool results format (snake_case) to OpenCode API format (camelCase).
     
     Unified format: {"type": "tool_result", "tool_use_id": "...", "content": "..."}
-    Kiro format: {"content": [{"text": "..."}], "status": "success", "toolUseId": "..."}
+    OpenCode format: {"content": [{"text": "..."}], "status": "success", "toolUseId": "..."}
     
     This is a critical function for fixing the 400 "Improperly formed request" bug
-    where tool_results were sent in unified format instead of Kiro format.
+    where tool_results were sent in unified format instead of OpenCode format.
     """
     
     def test_converts_single_tool_result(self):
         """
         What it does: Verifies conversion of a single tool result.
-        Purpose: Ensure basic conversion from unified to Kiro format works.
+        Purpose: Ensure basic conversion from unified to OpenCode format works.
         """
         print("Setup: Single tool result in unified format...")
         tool_results = [
             {"type": "tool_result", "tool_use_id": "call_123", "content": "Result text"}
         ]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_tool_results_to_kiro_format(tool_results)
+        print("Action: Converting to OpenCode format...")
+        result = convert_tool_results_to_opencode_zen_format(tool_results)
         
         print(f"Result: {result}")
         print("Checking structure...")
@@ -2909,8 +2909,8 @@ class TestConvertToolResultsToKiroFormat:
             {"type": "tool_result", "tool_use_id": "call_3", "content": "Result 3"}
         ]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_tool_results_to_kiro_format(tool_results)
+        print("Action: Converting to OpenCode format...")
+        result = convert_tool_results_to_opencode_zen_format(tool_results)
         
         print(f"Result: {result}")
         print(f"Comparing count: Expected 3, Got {len(result)}")
@@ -2933,8 +2933,8 @@ class TestConvertToolResultsToKiroFormat:
         """
         print("Setup: Empty list...")
         
-        print("Action: Converting to Kiro format...")
-        result = convert_tool_results_to_kiro_format([])
+        print("Action: Converting to OpenCode format...")
+        result = convert_tool_results_to_opencode_zen_format([])
         
         print(f"Comparing result: Expected [], Got {result}")
         assert result == []
@@ -2942,15 +2942,15 @@ class TestConvertToolResultsToKiroFormat:
     def test_replaces_empty_content_with_placeholder(self):
         """
         What it does: Verifies empty content is replaced with placeholder.
-        Purpose: Ensure Kiro API receives non-empty content (required by API).
+        Purpose: Ensure OpenCode API receives non-empty content (required by API).
         """
         print("Setup: Tool result with empty content...")
         tool_results = [
             {"type": "tool_result", "tool_use_id": "call_123", "content": ""}
         ]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_tool_results_to_kiro_format(tool_results)
+        print("Action: Converting to OpenCode format...")
+        result = convert_tool_results_to_opencode_zen_format(tool_results)
         
         print(f"Result: {result}")
         print("Checking that empty content is replaced with placeholder...")
@@ -2959,15 +2959,15 @@ class TestConvertToolResultsToKiroFormat:
     def test_replaces_none_content_with_placeholder(self):
         """
         What it does: Verifies None content is replaced with placeholder.
-        Purpose: Ensure Kiro API receives non-empty content when content is None.
+        Purpose: Ensure OpenCode API receives non-empty content when content is None.
         """
         print("Setup: Tool result with None content...")
         tool_results = [
             {"type": "tool_result", "tool_use_id": "call_123", "content": None}
         ]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_tool_results_to_kiro_format(tool_results)
+        print("Action: Converting to OpenCode format...")
+        result = convert_tool_results_to_opencode_zen_format(tool_results)
         
         print(f"Result: {result}")
         print("Checking that None content is replaced with placeholder...")
@@ -2983,8 +2983,8 @@ class TestConvertToolResultsToKiroFormat:
             {"type": "tool_result", "tool_use_id": "call_123"}
         ]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_tool_results_to_kiro_format(tool_results)
+        print("Action: Converting to OpenCode format...")
+        result = convert_tool_results_to_opencode_zen_format(tool_results)
         
         print(f"Result: {result}")
         print("Checking that missing content is replaced with placeholder...")
@@ -3000,8 +3000,8 @@ class TestConvertToolResultsToKiroFormat:
             {"type": "tool_result", "content": "Result text"}
         ]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_tool_results_to_kiro_format(tool_results)
+        print("Action: Converting to OpenCode format...")
+        result = convert_tool_results_to_opencode_zen_format(tool_results)
         
         print(f"Result: {result}")
         print("Checking that missing tool_use_id becomes empty string...")
@@ -3025,8 +3025,8 @@ class TestConvertToolResultsToKiroFormat:
             }
         ]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_tool_results_to_kiro_format(tool_results)
+        print("Action: Converting to OpenCode format...")
+        result = convert_tool_results_to_opencode_zen_format(tool_results)
         
         print(f"Result: {result}")
         print("Checking that list content is extracted correctly...")
@@ -3043,8 +3043,8 @@ class TestConvertToolResultsToKiroFormat:
             {"type": "tool_result", "tool_use_id": "call_123", "content": long_content}
         ]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_tool_results_to_kiro_format(tool_results)
+        print("Action: Converting to OpenCode format...")
+        result = convert_tool_results_to_opencode_zen_format(tool_results)
         
         print(f"Result content length: {len(result[0]['content'][0]['text'])}")
         print("Checking that long content is preserved...")
@@ -3054,7 +3054,7 @@ class TestConvertToolResultsToKiroFormat:
     def test_all_results_have_success_status(self):
         """
         What it does: Verifies all results have status="success".
-        Purpose: Ensure Kiro API receives correct status field.
+        Purpose: Ensure OpenCode API receives correct status field.
         """
         print("Setup: Multiple tool results...")
         tool_results = [
@@ -3062,8 +3062,8 @@ class TestConvertToolResultsToKiroFormat:
             {"type": "tool_result", "tool_use_id": "call_2", "content": "Result 2"}
         ]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_tool_results_to_kiro_format(tool_results)
+        print("Action: Converting to OpenCode format...")
+        result = convert_tool_results_to_opencode_zen_format(tool_results)
         
         print("Checking all statuses...")
         for i, r in enumerate(result):
@@ -3080,8 +3080,8 @@ class TestConvertToolResultsToKiroFormat:
             {"type": "tool_result", "tool_use_id": "call_123", "content": "Привет мир! 你好世界! 🎉"}
         ]
         
-        print("Action: Converting to Kiro format...")
-        result = convert_tool_results_to_kiro_format(tool_results)
+        print("Action: Converting to OpenCode format...")
+        result = convert_tool_results_to_opencode_zen_format(tool_results)
         
         print(f"Result: {result}")
         print("Checking that Unicode content is preserved...")
@@ -3223,7 +3223,7 @@ class TestProcessToolsWithLongDescriptions:
         )]
         
         print("Action: Processing tools...")
-        with patch('kiro.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 10000):
+        with patch('opencode_zen.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 10000):
             processed, doc = process_tools_with_long_descriptions(tools)
         
         print(f"Comparing description: Expected 'Get weather for a location', Got '{processed[0].description}'")
@@ -3245,7 +3245,7 @@ class TestProcessToolsWithLongDescriptions:
         )]
         
         print("Action: Processing tools with limit 10000...")
-        with patch('kiro.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 10000):
+        with patch('opencode_zen.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 10000):
             processed, doc = process_tools_with_long_descriptions(tools)
         
         print("Checking reference in description...")
@@ -3271,7 +3271,7 @@ class TestProcessToolsWithLongDescriptions:
         ]
         
         print("Action: Processing tools...")
-        with patch('kiro.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 10000):
+        with patch('opencode_zen.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 10000):
             processed, doc = process_tools_with_long_descriptions(tools)
         
         print(f"Checking tools count: Expected 2, Got {len(processed)}")
@@ -3295,7 +3295,7 @@ class TestProcessToolsWithLongDescriptions:
         tools = [UnifiedTool(name="test_tool", description=long_desc, input_schema={})]
         
         print("Action: Processing tools with limit 0...")
-        with patch('kiro.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 0):
+        with patch('opencode_zen.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 0):
             processed, doc = process_tools_with_long_descriptions(tools)
         
         print("Checking that description is unchanged...")
@@ -3315,7 +3315,7 @@ class TestProcessToolsWithLongDescriptions:
         ]
         
         print("Action: Processing tools...")
-        with patch('kiro.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 10000):
+        with patch('opencode_zen.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 10000):
             processed, doc = process_tools_with_long_descriptions(tools)
         
         print("Checking all three tools...")
@@ -3337,7 +3337,7 @@ class TestProcessToolsWithLongDescriptions:
         tools = [UnifiedTool(name="empty_desc_tool", description="", input_schema={})]
         
         print("Action: Processing tools...")
-        with patch('kiro.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 10000):
+        with patch('opencode_zen.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 10000):
             processed, doc = process_tools_with_long_descriptions(tools)
         
         print("Checking that empty description remains empty...")
@@ -3353,7 +3353,7 @@ class TestProcessToolsWithLongDescriptions:
         tools = [UnifiedTool(name="none_desc_tool", description=None, input_schema={})]
         
         print("Action: Processing tools...")
-        with patch('kiro.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 10000):
+        with patch('opencode_zen.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 10000):
             processed, doc = process_tools_with_long_descriptions(tools)
         
         print("Checking that None description is handled correctly...")
@@ -3382,7 +3382,7 @@ class TestProcessToolsWithLongDescriptions:
         )]
         
         print("Action: Processing tools...")
-        with patch('kiro.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 10000):
+        with patch('opencode_zen.converters_core.TOOL_DESCRIPTION_MAX_LENGTH', 10000):
             processed, doc = process_tools_with_long_descriptions(tools)
         
         print("Checking input_schema preservation...")
@@ -3390,11 +3390,11 @@ class TestProcessToolsWithLongDescriptions:
 
 
 # ==================================================================================================
-# Tests for convert_tools_to_kiro_format
+# Tests for convert_tools_to_opencode_zen_format
 # ==================================================================================================
 
-class TestConvertToolsToKiroFormat:
-    """Tests for convert_tools_to_kiro_format function."""
+class TestConvertToolsToOpenCodeFormat:
+    """Tests for convert_tools_to_opencode_zen_format function."""
     
     def test_returns_empty_list_for_none(self):
         """
@@ -3404,7 +3404,7 @@ class TestConvertToolsToKiroFormat:
         print("Setup: None tools...")
         
         print("Action: Converting tools...")
-        result = convert_tools_to_kiro_format(None)
+        result = convert_tools_to_opencode_zen_format(None)
         
         print(f"Comparing result: Expected [], Got {result}")
         assert result == []
@@ -3417,14 +3417,14 @@ class TestConvertToolsToKiroFormat:
         print("Setup: Empty tools list...")
         
         print("Action: Converting tools...")
-        result = convert_tools_to_kiro_format([])
+        result = convert_tools_to_opencode_zen_format([])
         
         print(f"Comparing result: Expected [], Got {result}")
         assert result == []
     
-    def test_converts_tool_to_kiro_format(self):
+    def test_converts_tool_to_opencode_zen_format(self):
         """
-        What it does: Verifies conversion of tool to Kiro format.
+        What it does: Verifies conversion of tool to OpenCode format.
         Purpose: Ensure toolSpecification structure is correct.
         """
         print("Setup: Tool...")
@@ -3435,7 +3435,7 @@ class TestConvertToolsToKiroFormat:
         )]
         
         print("Action: Converting tools...")
-        result = convert_tools_to_kiro_format(tools)
+        result = convert_tools_to_opencode_zen_format(tools)
         
         print(f"Result: {result}")
         assert len(result) == 1
@@ -3455,7 +3455,7 @@ class TestConvertToolsToKiroFormat:
         tools = [UnifiedTool(name="focus_chain", description="", input_schema={})]
         
         print("Action: Converting tools...")
-        result = convert_tools_to_kiro_format(tools)
+        result = convert_tools_to_opencode_zen_format(tools)
         
         print(f"Result: {result}")
         spec = result[0]["toolSpecification"]
@@ -3470,7 +3470,7 @@ class TestConvertToolsToKiroFormat:
         tools = [UnifiedTool(name="test_tool", description=None, input_schema={})]
         
         print("Action: Converting tools...")
-        result = convert_tools_to_kiro_format(tools)
+        result = convert_tools_to_opencode_zen_format(tools)
         
         print(f"Result: {result}")
         spec = result[0]["toolSpecification"]
@@ -3494,7 +3494,7 @@ class TestConvertToolsToKiroFormat:
         )]
         
         print("Action: Converting tools...")
-        result = convert_tools_to_kiro_format(tools)
+        result = convert_tools_to_opencode_zen_format(tools)
         
         print(f"Result: {result}")
         schema = result[0]["toolSpecification"]["inputSchema"]["json"]
@@ -3522,7 +3522,7 @@ class TestInjectThinkingTags:
         content = "Hello, world!"
         
         print("Action: Inject thinking tags with FAKE_REASONING_ENABLED=False...")
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', False):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', False):
             result = inject_thinking_tags(content, ThinkingConfig())
         
         print(f"Comparing result: Expected 'Hello, world!', Got '{result}'")
@@ -3537,8 +3537,8 @@ class TestInjectThinkingTags:
         content = "What is 2+2?"
         
         print("Action: Inject thinking tags with FAKE_REASONING_ENABLED=True...")
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', True):
-            with patch('kiro.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', True):
+            with patch('opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
                 result = inject_thinking_tags(content, ThinkingConfig())
         
         print(f"Result: {result[:200]}...")
@@ -3560,8 +3560,8 @@ class TestInjectThinkingTags:
         content = "Analyze this code"
         
         print("Action: Inject thinking tags...")
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', True):
-            with patch('kiro.converters_core.FAKE_REASONING_MAX_TOKENS', 8000):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', True):
+            with patch('opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS', 8000):
                 result = inject_thinking_tags(content, ThinkingConfig())
         
         print(f"Result length: {len(result)} chars")
@@ -3578,8 +3578,8 @@ class TestInjectThinkingTags:
         content = "Test"
         
         print("Action: Inject thinking tags...")
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', True):
-            with patch('kiro.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', True):
+            with patch('opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
                 result = inject_thinking_tags(content, ThinkingConfig())
         
         print("Checking for English directive...")
@@ -3594,9 +3594,9 @@ class TestInjectThinkingTags:
         content = "Test"
         
         print("Action: Inject thinking tags with FAKE_REASONING_MAX_TOKENS=16000...")
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', True):
-            with patch('kiro.converters_core.FAKE_REASONING_MAX_TOKENS', 16000):
-                with patch('kiro.converters_core.FAKE_REASONING_BUDGET_CAP', 0):  # Disable cap
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', True):
+            with patch('opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS', 16000):
+                with patch('opencode_zen.converters_core.FAKE_REASONING_BUDGET_CAP', 0):  # Disable cap
                     result = inject_thinking_tags(content, ThinkingConfig())
         
         print(f"Result: {result[:300]}...")
@@ -3612,8 +3612,8 @@ class TestInjectThinkingTags:
         content = ""
         
         print("Action: Inject thinking tags...")
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', True):
-            with patch('kiro.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', True):
+            with patch('opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
                 result = inject_thinking_tags(content, ThinkingConfig())
         
         print(f"Result length: {len(result)} chars")
@@ -3630,8 +3630,8 @@ class TestInjectThinkingTags:
         content = "Line 1\nLine 2\nLine 3"
         
         print("Action: Inject thinking tags...")
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', True):
-            with patch('kiro.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', True):
+            with patch('opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
                 result = inject_thinking_tags(content, ThinkingConfig())
         
         print("Checking that multiline content is preserved...")
@@ -3646,8 +3646,8 @@ class TestInjectThinkingTags:
         content = "Check this <code>example</code> and {json: 'value'}"
         
         print("Action: Inject thinking tags...")
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', True):
-            with patch('kiro.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', True):
+            with patch('opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
                 result = inject_thinking_tags(content, ThinkingConfig())
         
         print("Checking that special characters are preserved...")
@@ -3663,8 +3663,8 @@ class TestInjectThinkingTags:
         content = "Test"
         
         print("Action: Inject thinking tags...")
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', True):
-            with patch('kiro.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', True):
+            with patch('opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
                 result = inject_thinking_tags(content, ThinkingConfig())
         
         print("Checking for systematic approach keywords...")
@@ -3679,8 +3679,8 @@ class TestInjectThinkingTags:
         content = "Test"
         
         print("Action: Inject thinking tags...")
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', True):
-            with patch('kiro.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', True):
+            with patch('opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
                 result = inject_thinking_tags(content, ThinkingConfig())
         
         print("Checking for understanding step...")
@@ -3695,8 +3695,8 @@ class TestInjectThinkingTags:
         content = "Test"
         
         print("Action: Inject thinking tags...")
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', True):
-            with patch('kiro.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', True):
+            with patch('opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
                 result = inject_thinking_tags(content, ThinkingConfig())
         
         print("Checking for verification step...")
@@ -3711,8 +3711,8 @@ class TestInjectThinkingTags:
         content = "Test"
         
         print("Action: Inject thinking tags...")
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', True):
-            with patch('kiro.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', True):
+            with patch('opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
                 result = inject_thinking_tags(content, ThinkingConfig())
         
         print("Checking for quality emphasis...")
@@ -3727,8 +3727,8 @@ class TestInjectThinkingTags:
         content = "USER_CONTENT_HERE"
         
         print("Action: Inject thinking tags...")
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', True):
-            with patch('kiro.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', True):
+            with patch('opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
                 result = inject_thinking_tags(content, ThinkingConfig())
         
         print("Checking tag order...")
@@ -3745,11 +3745,11 @@ class TestInjectThinkingTags:
 
 
 # ==================================================================================================
-# Tests for build_kiro_history
+# Tests for build_opencode_zen_history
 # ==================================================================================================
 
-class TestBuildKiroHistory:
-    """Tests for build_kiro_history function using UnifiedMessage."""
+class TestBuildOpenCodeHistory:
+    """Tests for build_opencode_zen_history function using UnifiedMessage."""
     
     def test_builds_user_message(self):
         """
@@ -3760,7 +3760,7 @@ class TestBuildKiroHistory:
         messages = [UnifiedMessage(role="user", content="Hello")]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Result: {result}")
         assert len(result) == 1
@@ -3777,7 +3777,7 @@ class TestBuildKiroHistory:
         messages = [UnifiedMessage(role="assistant", content="Hi there")]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Result: {result}")
         assert len(result) == 1
@@ -3786,8 +3786,8 @@ class TestBuildKiroHistory:
     
     def test_expects_normalized_roles_only(self):
         """
-        What it does: Verifies build_kiro_history only handles user/assistant roles.
-        Purpose: After normalize_message_roles(), build_kiro_history should never
+        What it does: Verifies build_opencode_zen_history only handles user/assistant roles.
+        Purpose: After normalize_message_roles(), build_opencode_zen_history should never
                  see unknown roles. This test confirms it only processes normalized roles.
         """
         print("Setup: Messages with normalized roles (user/assistant only)...")
@@ -3797,7 +3797,7 @@ class TestBuildKiroHistory:
         ]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Comparing length: Expected 2, Got {len(result)}")
         assert len(result) == 2
@@ -3821,7 +3821,7 @@ class TestBuildKiroHistory:
         ]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Result: {result}")
         assert len(result) == 3
@@ -3837,7 +3837,7 @@ class TestBuildKiroHistory:
         print("Setup: Empty list...")
         
         print("Action: Building history...")
-        result = build_kiro_history([], "claude-sonnet-4")
+        result = build_opencode_zen_history([], "claude-sonnet-4")
         
         print(f"Comparing result: Expected [], Got {result}")
         assert result == []
@@ -3859,7 +3859,7 @@ class TestBuildKiroHistory:
         ]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Result: {result}")
         assert len(result) == 1
@@ -3889,7 +3889,7 @@ class TestBuildKiroHistory:
         ]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Result: {result}")
         assert len(result) == 1
@@ -3900,7 +3900,7 @@ class TestBuildKiroHistory:
     def test_adds_empty_placeholder_for_empty_user_content(self):
         """
         What it does: Verifies that "(empty placeholder)" placeholder is added for user messages with empty content.
-        Purpose: Ensure Kiro API receives non-empty content in history.
+        Purpose: Ensure OpenCode API receives non-empty content in history.
         
         This is a fallback test for issue #20 - ensures any edge case with empty content
         is handled even if strip_all_tool_content didn't add a placeholder.
@@ -3909,7 +3909,7 @@ class TestBuildKiroHistory:
         messages = [UnifiedMessage(role="user", content="")]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Result: {result}")
         print(f"Content: '{result[0]['userInputMessage']['content']}'")
@@ -3919,7 +3919,7 @@ class TestBuildKiroHistory:
     def test_adds_empty_placeholder_for_empty_assistant_content(self):
         """
         What it does: Verifies that "(empty placeholder)" placeholder is added for assistant messages with empty content.
-        Purpose: Ensure Kiro API receives non-empty content in history.
+        Purpose: Ensure OpenCode API receives non-empty content in history.
         
         This is a fallback test for issue #20 - ensures any edge case with empty content
         is handled even if strip_all_tool_content didn't add a placeholder.
@@ -3928,7 +3928,7 @@ class TestBuildKiroHistory:
         messages = [UnifiedMessage(role="assistant", content="")]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Result: {result}")
         print(f"Content: '{result[0]['assistantResponseMessage']['content']}'")
@@ -3938,13 +3938,13 @@ class TestBuildKiroHistory:
     def test_adds_empty_placeholder_for_none_user_content(self):
         """
         What it does: Verifies that "(empty placeholder)" placeholder is added for user messages with None content.
-        Purpose: Ensure Kiro API receives non-empty content when content is None.
+        Purpose: Ensure OpenCode API receives non-empty content when content is None.
         """
         print("Setup: User message with None content...")
         messages = [UnifiedMessage(role="user", content=None)]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Result: {result}")
         print(f"Content: '{result[0]['userInputMessage']['content']}'")
@@ -3954,13 +3954,13 @@ class TestBuildKiroHistory:
     def test_adds_empty_placeholder_for_none_assistant_content(self):
         """
         What it does: Verifies that "(empty placeholder)" placeholder is added for assistant messages with None content.
-        Purpose: Ensure Kiro API receives non-empty content when content is None.
+        Purpose: Ensure OpenCode API receives non-empty content when content is None.
         """
         print("Setup: Assistant message with None content...")
         messages = [UnifiedMessage(role="assistant", content=None)]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Result: {result}")
         print(f"Content: '{result[0]['assistantResponseMessage']['content']}'")
@@ -3979,7 +3979,7 @@ class TestBuildKiroHistory:
         ]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Result: {result}")
         print("Checking that original content is preserved...")
@@ -4002,7 +4002,7 @@ class TestBuildKiroHistory:
         ]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Result: {result}")
         print("Checking each message...")
@@ -4024,7 +4024,7 @@ class TestBuildKiroHistory:
         What it does: Verifies building of user message with images.
         Purpose: Ensure images are included directly in userInputMessage.images (Issue #32 fix).
         
-        This is a critical test for Issue #30/#32 fix - images should be in Kiro format
+        This is a critical test for Issue #30/#32 fix - images should be in OpenCode format
         and placed directly in userInputMessage, NOT in userInputMessageContext.
         """
         print("Setup: User message with images...")
@@ -4037,7 +4037,7 @@ class TestBuildKiroHistory:
         ]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Result: {result}")
         assert len(result) == 1
@@ -4049,7 +4049,7 @@ class TestBuildKiroHistory:
         print("Checking that images are directly in userInputMessage (Issue #32 fix)...")
         assert "images" in user_msg
         
-        print("Checking image format (Kiro format)...")
+        print("Checking image format (OpenCode format)...")
         images = user_msg["images"]
         assert len(images) == 1
         assert images[0]["format"] == "jpeg"
@@ -4073,7 +4073,7 @@ class TestBuildKiroHistory:
         ]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Result: {result}")
         user_msg = result[0]["userInputMessage"]
@@ -4110,7 +4110,7 @@ class TestBuildKiroHistory:
         ]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Result: {result}")
         user_msg = result[0]["userInputMessage"]
@@ -4141,7 +4141,7 @@ class TestBuildKiroHistory:
         ]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Result: {result}")
         user_msg = result[0]["userInputMessage"]
@@ -4157,7 +4157,7 @@ class TestBuildKiroHistory:
     def test_builds_user_message_with_webp_image(self):
         """
         What it does: Verifies building of user message with WebP image.
-        Purpose: Ensure WebP format is correctly converted to Kiro format in userInputMessage (Issue #32 fix).
+        Purpose: Ensure WebP format is correctly converted to OpenCode format in userInputMessage (Issue #32 fix).
         """
         print("Setup: User message with WebP image...")
         messages = [
@@ -4169,7 +4169,7 @@ class TestBuildKiroHistory:
         ]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Result: {result}")
         user_msg = result[0]["userInputMessage"]
@@ -4183,7 +4183,7 @@ class TestBuildKiroHistory:
     def test_builds_user_message_with_gif_image(self):
         """
         What it does: Verifies building of user message with GIF image.
-        Purpose: Ensure GIF format is correctly converted to Kiro format in userInputMessage (Issue #32 fix).
+        Purpose: Ensure GIF format is correctly converted to OpenCode format in userInputMessage (Issue #32 fix).
         """
         print("Setup: User message with GIF image...")
         messages = [
@@ -4195,7 +4195,7 @@ class TestBuildKiroHistory:
         ]
         
         print("Action: Building history...")
-        result = build_kiro_history(messages, "claude-sonnet-4")
+        result = build_opencode_zen_history(messages, "claude-sonnet-4")
         
         print(f"Result: {result}")
         user_msg = result[0]["userInputMessage"]
@@ -4216,7 +4216,7 @@ class TestStripAllToolContent:
     
     This function strips ALL tool-related content (tool_calls and tool_results)
     from messages. It is used when no tools are defined in the request, because
-    Kiro API rejects requests that have toolResults but no tools defined.
+    OpenCode API rejects requests that have toolResults but no tools defined.
     
     This is a critical function for handling clients like Cline/Roo/Cursor that may
     send tool-related content even when tools are not available.
@@ -4580,7 +4580,7 @@ class TestStripAllToolContent:
     def test_adds_tool_text_for_empty_content_with_tool_calls(self):
         """
         What it does: Verifies that tool_calls are converted to text when content is empty.
-        Purpose: Ensure Kiro API receives non-empty content for messages that only had tool_calls.
+        Purpose: Ensure OpenCode API receives non-empty content for messages that only had tool_calls.
         
         This is a critical test for issue #20 - OpenCode compaction returns 400 error
         because messages with only tool_calls become empty after stripping.
@@ -4614,7 +4614,7 @@ class TestStripAllToolContent:
     def test_adds_tool_text_for_empty_content_with_tool_results(self):
         """
         What it does: Verifies that tool_results are converted to text when content is empty.
-        Purpose: Ensure Kiro API receives non-empty content for messages that only had tool_results.
+        Purpose: Ensure OpenCode API receives non-empty content for messages that only had tool_results.
         
         This is a critical test for issue #20 - OpenCode compaction returns 400 error
         because messages with only tool_results become empty after stripping.
@@ -5334,14 +5334,14 @@ class TestToolResultsToText:
 # Tests for build_opencode_payload with Issue #20 Scenario
 # ==================================================================================================
 
-class TestBuildKiroPayloadIssue20:
+class TestBuildOpenCodePayloadIssue20:
     """
     Tests for build_opencode_payload function specifically for Issue #20 scenario.
     
     Issue #20: OpenCode compaction returns 400 "Improperly formed request"
     because it sends tool_calls/tool_results in history but WITHOUT tools definitions.
     
-    Kiro API requires tools definitions if toolUses/toolResults are present.
+    OpenCode API requires tools definitions if toolUses/toolResults are present.
     The fix converts tool content to text representation when no tools are defined.
     """
     
@@ -5378,7 +5378,7 @@ class TestBuildKiroPayloadIssue20:
             UnifiedMessage(role="user", content="Summarize what we did")
         ]
         
-        print("Action: Building Kiro payload WITHOUT tools (compaction scenario)...")
+        print("Action: Building OpenCode payload WITHOUT tools (compaction scenario)...")
         result = build_opencode_payload(
             messages=messages,
             system_prompt="You are a helpful assistant.",
@@ -5445,7 +5445,7 @@ class TestBuildKiroPayloadIssue20:
             UnifiedMessage(role="user", content="What was in that result?")
         ]
         
-        print("Action: Building Kiro payload without tools...")
+        print("Action: Building OpenCode payload without tools...")
         result = build_opencode_payload(
             messages=messages,
             system_prompt="",
@@ -5516,7 +5516,7 @@ class TestBuildKiroPayloadIssue20:
             input_schema={"type": "object", "properties": {}}
         )]
         
-        print("Action: Building Kiro payload WITH tools...")
+        print("Action: Building OpenCode payload WITH tools...")
         result = build_opencode_payload(
             messages=messages,
             system_prompt="",
@@ -5561,7 +5561,7 @@ class TestBuildKiroPayloadIssue20:
             UnifiedMessage(role="user", content="(empty placeholder)")
         ]
         
-        print("Action: Building Kiro payload with empty tools list...")
+        print("Action: Building OpenCode payload with empty tools list...")
         result = build_opencode_payload(
             messages=messages,
             system_prompt="",
@@ -5588,14 +5588,14 @@ class TestBuildKiroPayloadIssue20:
 # Tests for build_opencode_payload with Images (Issue #30)
 # ==================================================================================================
 
-class TestBuildKiroPayloadImages:
+class TestBuildOpenCodePayloadImages:
     """
     Tests for build_opencode_payload function with image content.
     
     Issue #30: 422 Validation Error when sending image content blocks.
     The fix adds support for image content blocks in messages.
     
-    These tests verify that images are correctly included in the Kiro payload.
+    These tests verify that images are correctly included in the OpenCode payload.
     """
     
     def test_includes_images_in_current_message(self):
@@ -5614,7 +5614,7 @@ class TestBuildKiroPayloadImages:
             )
         ]
         
-        print("Action: Building Kiro payload...")
+        print("Action: Building OpenCode payload...")
         result = build_opencode_payload(
             messages=messages,
             system_prompt="You are a helpful assistant.",
@@ -5639,7 +5639,7 @@ class TestBuildKiroPayloadImages:
         print(f"Images: {images}")
         assert len(images) == 1
         
-        print("Checking image format (Kiro format)...")
+        print("Checking image format (OpenCode format)...")
         assert images[0]["format"] == "jpeg"
         assert images[0]["source"]["bytes"] == TEST_IMAGE_BASE64
     
@@ -5661,7 +5661,7 @@ class TestBuildKiroPayloadImages:
             )
         ]
         
-        print("Action: Building Kiro payload...")
+        print("Action: Building OpenCode payload...")
         result = build_opencode_payload(
             messages=messages,
             system_prompt="",
@@ -5699,7 +5699,7 @@ class TestBuildKiroPayloadImages:
             UnifiedMessage(role="user", content="What color is the cat?")
         ]
         
-        print("Action: Building Kiro payload...")
+        print("Action: Building OpenCode payload...")
         result = build_opencode_payload(
             messages=messages,
             system_prompt="",
@@ -5745,7 +5745,7 @@ class TestBuildKiroPayloadImages:
             input_schema={"type": "object", "properties": {}}
         )]
         
-        print("Action: Building Kiro payload with tools...")
+        print("Action: Building OpenCode payload with tools...")
         result = build_opencode_payload(
             messages=messages,
             system_prompt="",
@@ -5808,7 +5808,7 @@ class TestBuildKiroPayloadImages:
             input_schema={"type": "object", "properties": {}}
         )]
         
-        print("Action: Building Kiro payload...")
+        print("Action: Building OpenCode payload...")
         result = build_opencode_payload(
             messages=messages,
             system_prompt="",
@@ -5846,7 +5846,7 @@ class TestBuildKiroPayloadImages:
             UnifiedMessage(role="user", content="Hello, no images here")
         ]
         
-        print("Action: Building Kiro payload...")
+        print("Action: Building OpenCode payload...")
         result = build_opencode_payload(
             messages=messages,
             system_prompt="",
@@ -5881,7 +5881,7 @@ class TestBuildKiroPayloadImages:
             )
         ]
         
-        print("Action: Building Kiro payload...")
+        print("Action: Building OpenCode payload...")
         result = build_opencode_payload(
             messages=messages,
             system_prompt="",
@@ -5913,9 +5913,9 @@ class TestBuildKiroPayloadImages:
             )
         ]
         
-        print("Action: Building Kiro payload with thinking injection...")
-        with patch('kiro.converters_core.FAKE_REASONING_ENABLED', True):
-            with patch('kiro.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
+        print("Action: Building OpenCode payload with thinking injection...")
+        with patch('opencode_zen.converters_core.FAKE_REASONING_ENABLED', True):
+            with patch('opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS', 4000):
                 result = build_opencode_payload(
                     messages=messages,
                     system_prompt="",
@@ -5946,7 +5946,7 @@ class TestValidateToolNames:
     """
     Tests for validate_tool_names function.
     
-    This function validates tool names against Kiro API 64-character limit.
+    This function validates tool names against OpenCode API 64-character limit.
     Issue #41: 400 Improperly formed request with long tool names from MCP servers.
     """
     
@@ -6004,7 +6004,7 @@ class TestValidateToolNames:
             raise AssertionError("65-character names should be rejected")
         except ValueError as e:
             print(f"Validation correctly rejected: {str(e)[:100]}...")
-            assert "exceed Kiro API limit" in str(e)
+            assert "exceed OpenCode API limit" in str(e)
             assert name_65 in str(e)
     
     def test_rejects_very_long_tool_names(self):
@@ -6024,7 +6024,7 @@ class TestValidateToolNames:
             raise AssertionError("Very long names should be rejected")
         except ValueError as e:
             print(f"Validation correctly rejected: {str(e)[:100]}...")
-            assert "exceed Kiro API limit" in str(e)
+            assert "exceed OpenCode API limit" in str(e)
             assert "100 characters" in str(e)
     
     def test_rejects_multiple_long_names(self):
@@ -6284,7 +6284,7 @@ class TestInjectThinkingTagsWithConfig:
         Purpose: Ensure global disable flag works regardless of config
         """
         print("Setting FAKE_REASONING_ENABLED=False...")
-        monkeypatch.setattr("kiro.converters_core.FAKE_REASONING_ENABLED", False)
+        monkeypatch.setattr("opencode_zen.converters_core.FAKE_REASONING_ENABLED", False)
         
         config = ThinkingConfig(enabled=True, budget_tokens=8000)
         content = "Hello, world!"
@@ -6301,7 +6301,7 @@ class TestInjectThinkingTagsWithConfig:
         Purpose: Ensure client can disable thinking per-request
         """
         print("Setting FAKE_REASONING_ENABLED=True...")
-        monkeypatch.setattr("kiro.converters_core.FAKE_REASONING_ENABLED", True)
+        monkeypatch.setattr("opencode_zen.converters_core.FAKE_REASONING_ENABLED", True)
         
         config = ThinkingConfig(enabled=False, budget_tokens=None)
         content = "Hello, world!"
@@ -6318,9 +6318,9 @@ class TestInjectThinkingTagsWithConfig:
         Purpose: Ensure default budget fallback works
         """
         print("Setting FAKE_REASONING_ENABLED=True, FAKE_REASONING_MAX_TOKENS=4000...")
-        monkeypatch.setattr("kiro.converters_core.FAKE_REASONING_ENABLED", True)
-        monkeypatch.setattr("kiro.converters_core.FAKE_REASONING_MAX_TOKENS", 4000)
-        monkeypatch.setattr("kiro.converters_core.FAKE_REASONING_BUDGET_CAP", 10000)
+        monkeypatch.setattr("opencode_zen.converters_core.FAKE_REASONING_ENABLED", True)
+        monkeypatch.setattr("opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS", 4000)
+        monkeypatch.setattr("opencode_zen.converters_core.FAKE_REASONING_BUDGET_CAP", 10000)
         
         config = ThinkingConfig(enabled=True, budget_tokens=None)
         content = "Test content"
@@ -6339,8 +6339,8 @@ class TestInjectThinkingTagsWithConfig:
         Purpose: Ensure client-provided budget is respected
         """
         print("Setting FAKE_REASONING_ENABLED=True...")
-        monkeypatch.setattr("kiro.converters_core.FAKE_REASONING_ENABLED", True)
-        monkeypatch.setattr("kiro.converters_core.FAKE_REASONING_BUDGET_CAP", 10000)
+        monkeypatch.setattr("opencode_zen.converters_core.FAKE_REASONING_ENABLED", True)
+        monkeypatch.setattr("opencode_zen.converters_core.FAKE_REASONING_BUDGET_CAP", 10000)
         
         config = ThinkingConfig(enabled=True, budget_tokens=8000)
         content = "Test content"
@@ -6361,15 +6361,15 @@ class TestInjectThinkingTagsWithConfig:
         from unittest.mock import patch, call
         
         print("Setting FAKE_REASONING_ENABLED=True, cap=10000...")
-        monkeypatch.setattr("kiro.converters_core.FAKE_REASONING_ENABLED", True)
-        monkeypatch.setattr("kiro.converters_core.FAKE_REASONING_BUDGET_CAP", 10000)
+        monkeypatch.setattr("opencode_zen.converters_core.FAKE_REASONING_ENABLED", True)
+        monkeypatch.setattr("opencode_zen.converters_core.FAKE_REASONING_BUDGET_CAP", 10000)
         
         config = ThinkingConfig(enabled=True, budget_tokens=50000)
         content = "Test content"
         
         print(f"Calling inject_thinking_tags with budget=50000 (exceeds cap)...")
         # Mock logger.warning to verify it's called
-        with patch("kiro.converters_core.logger.warning") as mock_warning:
+        with patch("opencode_zen.converters_core.logger.warning") as mock_warning:
             result = inject_thinking_tags(content, config)
             
             print(f"Checking for capped value <max_thinking_length>10000</max_thinking_length>...")
@@ -6391,8 +6391,8 @@ class TestInjectThinkingTagsWithConfig:
         Purpose: Ensure cap doesn't affect budgets below limit
         """
         print("Setting FAKE_REASONING_ENABLED=True, cap=10000...")
-        monkeypatch.setattr("kiro.converters_core.FAKE_REASONING_ENABLED", True)
-        monkeypatch.setattr("kiro.converters_core.FAKE_REASONING_BUDGET_CAP", 10000)
+        monkeypatch.setattr("opencode_zen.converters_core.FAKE_REASONING_ENABLED", True)
+        monkeypatch.setattr("opencode_zen.converters_core.FAKE_REASONING_BUDGET_CAP", 10000)
         
         config = ThinkingConfig(enabled=True, budget_tokens=5000)
         content = "Test content"
@@ -6409,8 +6409,8 @@ class TestInjectThinkingTagsWithConfig:
         Purpose: Ensure users can disable capping
         """
         print("Setting FAKE_REASONING_ENABLED=True, cap=0 (disabled)...")
-        monkeypatch.setattr("kiro.converters_core.FAKE_REASONING_ENABLED", True)
-        monkeypatch.setattr("kiro.converters_core.FAKE_REASONING_BUDGET_CAP", 0)
+        monkeypatch.setattr("opencode_zen.converters_core.FAKE_REASONING_ENABLED", True)
+        monkeypatch.setattr("opencode_zen.converters_core.FAKE_REASONING_BUDGET_CAP", 0)
         
         config = ThinkingConfig(enabled=True, budget_tokens=50000)
         content = "Test content"
@@ -6422,7 +6422,7 @@ class TestInjectThinkingTagsWithConfig:
         assert "<max_thinking_length>50000</max_thinking_length>" in result
 
 
-class TestBuildKiroPayloadWithThinkingConfig:
+class TestBuildOpenCodePayloadWithThinkingConfig:
     """Tests for build_opencode_payload with thinking_config parameter."""
     
     def test_passes_thinking_config_to_inject(self, monkeypatch):
@@ -6431,8 +6431,8 @@ class TestBuildKiroPayloadWithThinkingConfig:
         Purpose: Ensure thinking configuration flows through the pipeline
         """
         print("Setting up mocks...")
-        monkeypatch.setattr("kiro.converters_core.FAKE_REASONING_ENABLED", True)
-        monkeypatch.setattr("kiro.converters_core.FAKE_REASONING_BUDGET_CAP", 10000)
+        monkeypatch.setattr("opencode_zen.converters_core.FAKE_REASONING_ENABLED", True)
+        monkeypatch.setattr("opencode_zen.converters_core.FAKE_REASONING_BUDGET_CAP", 10000)
         
         messages = [UnifiedMessage(role="user", content="Test message")]
         thinking_config = ThinkingConfig(enabled=True, budget_tokens=7000)

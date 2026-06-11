@@ -3,13 +3,13 @@
 """
 Unit tests for converters_anthropic module.
 
-Tests for Anthropic Messages API to Kiro format conversion:
+Tests for Anthropic Messages API to OpenCode format conversion:
 - Content extraction from Anthropic format
 - Tool results extraction
 - Tool uses extraction
 - Message conversion to unified format
 - Tool conversion to unified format
-- Full Anthropic → Kiro payload conversion
+- Full Anthropic → OpenCode payload conversion
 """
 
 import pytest
@@ -200,7 +200,7 @@ class TestExtractSystemPrompt:
     def test_extracts_from_list_with_cache_control(self):
         """
         What it does: Verifies extraction ignores cache_control field.
-        Purpose: Ensure cache_control is stripped (not supported by Kiro).
+        Purpose: Ensure cache_control is stripped (not supported by OpenCode).
         """
         print("Setup: List with cache_control (prompt caching format)...")
         system = [
@@ -1441,12 +1441,12 @@ class TestConvertAnthropicTools:
 # ==================================================================================================
 
 
-class TestAnthropicToKiro:
+class TestAnthropicToOpenCode:
     """Tests for anthropic_to_opencode function - main entry point."""
 
     def test_builds_simple_payload(self):
         """
-        What it does: Verifies building of simple Kiro payload.
+        What it does: Verifies building of simple OpenCode payload.
         Purpose: Ensure basic request is converted correctly.
         """
         print("Setup: Simple Anthropic request...")
@@ -1456,12 +1456,12 @@ class TestAnthropicToKiro:
             max_tokens=1024,
         )
 
-        print("Action: Converting to Kiro payload...")
+        print("Action: Converting to OpenCode payload...")
         with patch(
-            "kiro.converters_anthropic.get_model_id_for_kiro",
+            "opencode_zen.converters_anthropic.get_model_id_for_kiro",
             return_value="claude-sonnet-4.5",
         ):
-            with patch("kiro.converters_core.FAKE_REASONING_ENABLED", False):
+            with patch("opencode_zen.converters_core.FAKE_REASONING_ENABLED", False):
                 result = anthropic_to_opencode(request, "conv-123", "arn:aws:test")
 
         print(f"Result: {result}")
@@ -1484,12 +1484,12 @@ class TestAnthropicToKiro:
             system="You are a helpful assistant.",
         )
 
-        print("Action: Converting to Kiro payload...")
+        print("Action: Converting to OpenCode payload...")
         with patch(
-            "kiro.converters_anthropic.get_model_id_for_kiro",
+            "opencode_zen.converters_anthropic.get_model_id_for_kiro",
             return_value="claude-sonnet-4.5",
         ):
-            with patch("kiro.converters_core.FAKE_REASONING_ENABLED", False):
+            with patch("opencode_zen.converters_core.FAKE_REASONING_ENABLED", False):
                 result = anthropic_to_opencode(request, "conv-123", "arn:aws:test")
 
         print(f"Result: {result}")
@@ -1502,7 +1502,7 @@ class TestAnthropicToKiro:
     def test_includes_tools(self):
         """
         What it does: Verifies that tools are included in payload.
-        Purpose: Ensure Anthropic tools are converted to Kiro format.
+        Purpose: Ensure Anthropic tools are converted to OpenCode format.
         """
         print("Setup: Request with tools...")
         request = AnthropicMessagesRequest(
@@ -1521,12 +1521,12 @@ class TestAnthropicToKiro:
             ],
         )
 
-        print("Action: Converting to Kiro payload...")
+        print("Action: Converting to OpenCode payload...")
         with patch(
-            "kiro.converters_anthropic.get_model_id_for_kiro",
+            "opencode_zen.converters_anthropic.get_model_id_for_kiro",
             return_value="claude-sonnet-4.5",
         ):
-            with patch("kiro.converters_core.FAKE_REASONING_ENABLED", False):
+            with patch("opencode_zen.converters_core.FAKE_REASONING_ENABLED", False):
                 result = anthropic_to_opencode(request, "conv-123", "arn:aws:test")
 
         print(f"Result: {result}")
@@ -1554,12 +1554,12 @@ class TestAnthropicToKiro:
             max_tokens=1024,
         )
 
-        print("Action: Converting to Kiro payload...")
+        print("Action: Converting to OpenCode payload...")
         with patch(
-            "kiro.converters_anthropic.get_model_id_for_kiro",
+            "opencode_zen.converters_anthropic.get_model_id_for_kiro",
             return_value="claude-sonnet-4.5",
         ):
-            with patch("kiro.converters_core.FAKE_REASONING_ENABLED", False):
+            with patch("opencode_zen.converters_core.FAKE_REASONING_ENABLED", False):
                 result = anthropic_to_opencode(request, "conv-123", "arn:aws:test")
 
         print(f"Result: {result}")
@@ -1616,12 +1616,12 @@ class TestAnthropicToKiro:
             ],
         )
 
-        print("Action: Converting to Kiro payload...")
+        print("Action: Converting to OpenCode payload...")
         with patch(
-            "kiro.converters_anthropic.get_model_id_for_kiro",
+            "opencode_zen.converters_anthropic.get_model_id_for_kiro",
             return_value="claude-sonnet-4.5",
         ):
-            with patch("kiro.converters_core.FAKE_REASONING_ENABLED", False):
+            with patch("opencode_zen.converters_core.FAKE_REASONING_ENABLED", False):
                 result = anthropic_to_opencode(request, "conv-123", "arn:aws:test")
 
         print(f"Result: {result}")
@@ -1671,13 +1671,13 @@ class TestAnthropicToKiro:
             max_tokens=1024,
         )
 
-        print("Action: Converting to Kiro payload with fake reasoning...")
+        print("Action: Converting to OpenCode payload with fake reasoning...")
         with patch(
-            "kiro.converters_anthropic.get_model_id_for_kiro",
+            "opencode_zen.converters_anthropic.get_model_id_for_kiro",
             return_value="claude-sonnet-4.5",
         ):
-            with patch("kiro.converters_core.FAKE_REASONING_ENABLED", True):
-                with patch("kiro.converters_core.FAKE_REASONING_MAX_TOKENS", 4000):
+            with patch("opencode_zen.converters_core.FAKE_REASONING_ENABLED", True):
+                with patch("opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS", 4000):
                     result = anthropic_to_opencode(request, "conv-123", "arn:aws:test")
 
         print(f"Result: {result}")
@@ -1721,13 +1721,13 @@ class TestAnthropicToKiro:
             ],
         )
 
-        print("Action: Converting to Kiro payload...")
+        print("Action: Converting to OpenCode payload...")
         with patch(
-            "kiro.converters_anthropic.get_model_id_for_kiro",
+            "opencode_zen.converters_anthropic.get_model_id_for_kiro",
             return_value="claude-sonnet-4.5",
         ):
-            with patch("kiro.converters_core.FAKE_REASONING_ENABLED", True):
-                with patch("kiro.converters_core.FAKE_REASONING_MAX_TOKENS", 4000):
+            with patch("opencode_zen.converters_core.FAKE_REASONING_ENABLED", True):
+                with patch("opencode_zen.converters_core.FAKE_REASONING_MAX_TOKENS", 4000):
                     result = anthropic_to_opencode(request, "conv-123", "arn:aws:test")
 
         print(f"Result: {result}")
@@ -1855,7 +1855,7 @@ class TestExtractThinkingConfigFromAnthropic:
     
 
 
-class TestAnthropicToKiroIntegration:
+class TestAnthropicToOpenCodeIntegration:
     """Integration tests for anthropic_to_opencode with thinking config."""
     
     def test_extracts_and_passes_thinking_config(self):
@@ -1872,9 +1872,9 @@ class TestAnthropicToKiroIntegration:
         )
         
         print("Calling anthropic_to_opencode...")
-        with patch("kiro.converters_anthropic.get_model_id_for_kiro", return_value="claude-sonnet-4.5"):
-            with patch("kiro.converters_core.FAKE_REASONING_ENABLED", True):
-                with patch("kiro.converters_core.FAKE_REASONING_BUDGET_CAP", 10000):
+        with patch("opencode_zen.converters_anthropic.get_model_id_for_kiro", return_value="claude-sonnet-4.5"):
+            with patch("opencode_zen.converters_core.FAKE_REASONING_ENABLED", True):
+                with patch("opencode_zen.converters_core.FAKE_REASONING_BUDGET_CAP", 10000):
                     payload = anthropic_to_opencode(request, "test-conv-123", "arn:aws:test")
         
         print("Extracting userInputMessage content...")

@@ -470,10 +470,10 @@ class TestServerPortConfig:
             assert config_module.SERVER_PORT == 8080
 
 
-class TestKiroCliDbFileConfig:
+class TestOpenCodeCliDbFileConfig:
     """Tests for KIRO_CLI_DB_FILE configuration."""
     
-    def test_kiro_cli_db_file_config_exists(self):
+    def test_opencode_zen_cli_db_file_config_exists(self):
         """
         What it does: Verifies that KIRO_CLI_DB_FILE constant exists.
         Purpose: Ensure the config parameter is defined.
@@ -490,7 +490,7 @@ class TestKiroCliDbFileConfig:
         # Default should be empty string
         assert isinstance(config_module.KIRO_CLI_DB_FILE, str)
     
-    def test_kiro_cli_db_file_from_environment(self):
+    def test_opencode_zen_cli_db_file_from_environment(self):
         """
         What it does: Verifies loading KIRO_CLI_DB_FILE from environment variable.
         Purpose: Ensure the value from environment is used and normalized.
@@ -587,7 +587,7 @@ class TestFallbackModelsConfig:
     def test_fallback_models_use_dot_format(self):
         """
         What it does: Verifies that model IDs use dot format (e.g., claude-4.5).
-        Purpose: Ensure consistency with Kiro API format.
+        Purpose: Ensure consistency with OpenCode API format.
         """
         print("Setup: Importing FALLBACK_MODELS...")
         from opencode_zen.config import FALLBACK_MODELS

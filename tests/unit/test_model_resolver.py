@@ -5,10 +5,10 @@ Unit tests for Dynamic Model Resolution System.
 
 Tests 5-layer model resolution architecture:
 0. Resolve Aliases - custom name mappings (NEW!)
-1. Normalize Name - convert client formats to Kiro format
+1. Normalize Name - convert client formats to OpenCode format
 2. Check Dynamic Cache - models from /ListAvailableModels API
 3. Check Hidden Models - manual config for undocumented models
-4. Pass-through - unknown models are sent to Kiro
+4. Pass-through - unknown models are sent to OpenCode
 """
 
 import pytest
@@ -32,7 +32,7 @@ from opencode_zen.cache import ModelInfoCache
 def mock_model_cache():
     """
     Creates ModelInfoCache with pre-populated models.
-    Simulates data from Kiro /ListAvailableModels API.
+    Simulates data from OpenCode /ListAvailableModels API.
     """
     print("Setup: Creating ModelInfoCache with test models...")
     cache = ModelInfoCache()
@@ -84,7 +84,7 @@ class TestNormalizeModelName:
     """
     Tests for normalize_model_name() function.
     
-    Checks conversion of client formats to Kiro format:
+    Checks conversion of client formats to OpenCode format:
     - Dashes → dots for minor versions
     - Removal of date suffix (20251001)
     - Removal of 'latest' suffix
@@ -558,14 +558,14 @@ class TestExtractModelFamily:
 
 
 # =============================================================================
-# TestGetModelIdForKiro - Tests for converter helper
+# TestGetModelIdForOpenCode - Tests for converter helper
 # =============================================================================
 
-class TestGetModelIdForKiro:
+class TestGetModelIdForOpenCode:
     """
     Tests for get_model_id_for_kiro() function.
     
-    Checks getting model ID for sending to Kiro API.
+    Checks getting model ID for sending to OpenCode API.
     """
     
     def test_normalizes_without_hidden_models(self):

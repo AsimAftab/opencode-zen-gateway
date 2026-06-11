@@ -2,7 +2,7 @@
 
 """
 Unit tests for AwsEventStreamParser and auxiliary parsing functions.
-Tests the parsing logic for AWS SSE stream from Kiro API.
+Tests the parsing logic for AWS SSE stream from OpenCode API.
 """
 
 import pytest
@@ -887,7 +887,7 @@ class TestDiagnoseJsonTruncation:
     """
     Tests for _diagnose_json_truncation method for diagnosing truncated JSON.
     
-    This method helps distinguish upstream issues (Kiro API truncates large
+    This method helps distinguish upstream issues (OpenCode API truncates large
     tool call arguments) from actually invalid JSON from the model.
     """
     

@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 
 """
-Unit tests for Kiro API error enhancement system.
-Tests enhance_kiro_error() function and KiroErrorInfo dataclass.
+Unit tests for OpenCode API error enhancement system.
+Tests enhance_opencode_zen_error() function and OpenCodeErrorInfo dataclass.
 """
 
 import pytest
 
-from opencode_zen.kiro_errors import (
-    KiroErrorInfo,
-    enhance_kiro_error
+from opencode_zen.opencode_zen_errors import (
+    OpenCodeErrorInfo,
+    enhance_opencode_zen_error
 )
 
 
-class TestEnhanceKiroErrorContentLength:
+class TestEnhanceOpenCodeErrorContentLength:
     """Tests for CONTENT_LENGTH_EXCEEDS_THRESHOLD error enhancement."""
     
     def test_content_length_error_enhanced_successfully(self):
@@ -28,7 +28,7 @@ class TestEnhanceKiroErrorContentLength:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: User message is enhanced...")
         print(f"Comparing user_message: Expected 'Model context limit reached...', Got '{error_info.user_message}'")
@@ -48,7 +48,7 @@ class TestEnhanceKiroErrorContentLength:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Original message preserved...")
         assert error_info.original_message == "Input is too long."
@@ -66,7 +66,7 @@ class TestEnhanceKiroErrorContentLength:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Reason is correct string value...")
         assert error_info.reason == "CONTENT_LENGTH_EXCEEDS_THRESHOLD"
@@ -84,14 +84,14 @@ class TestEnhanceKiroErrorContentLength:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: No (reason: ...) in user message...")
         assert "(reason:" not in error_info.user_message
         assert "CONTENT_LENGTH_EXCEEDS_THRESHOLD" not in error_info.user_message
 
 
-class TestEnhanceKiroErrorMonthlyLimit:
+class TestEnhanceOpenCodeErrorMonthlyLimit:
     """Tests for MONTHLY_REQUEST_COUNT error enhancement."""
     
     def test_monthly_limit_error_enhanced_successfully(self):
@@ -106,7 +106,7 @@ class TestEnhanceKiroErrorMonthlyLimit:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: User message is enhanced...")
         assert error_info.user_message == "Monthly request limit exceeded. Account has reached its monthly quota."
@@ -125,14 +125,14 @@ class TestEnhanceKiroErrorMonthlyLimit:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: No (reason: ...) in user message...")
         assert "(reason:" not in error_info.user_message
         assert "MONTHLY_REQUEST_COUNT" not in error_info.user_message
 
 
-class TestEnhanceKiroErrorInvalidModelId:
+class TestEnhanceOpenCodeErrorInvalidModelId:
     """Tests for INVALID_MODEL_ID error enhancement."""
     
     def test_invalid_model_id_enhanced_successfully(self):
@@ -147,7 +147,7 @@ class TestEnhanceKiroErrorInvalidModelId:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: User message is enhanced...")
         print(f"Comparing user_message: Expected 'Invalid model ID or insufficient subscription level to use it.', Got '{error_info.user_message}'")
@@ -167,7 +167,7 @@ class TestEnhanceKiroErrorInvalidModelId:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Original message preserved...")
         assert error_info.original_message == "Invalid model ID. Please select a different model to continue."
@@ -185,7 +185,7 @@ class TestEnhanceKiroErrorInvalidModelId:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Reason is correct string value...")
         assert error_info.reason == "INVALID_MODEL_ID"
@@ -203,7 +203,7 @@ class TestEnhanceKiroErrorInvalidModelId:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: No (reason: ...) in user message...")
         assert "(reason:" not in error_info.user_message
@@ -221,7 +221,7 @@ class TestEnhanceKiroErrorInvalidModelId:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Message mentions both causes...")
         message_lower = error_info.user_message.lower()
@@ -242,14 +242,14 @@ class TestEnhanceKiroErrorInvalidModelId:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Same enhanced message regardless of original...")
         assert error_info.user_message == "Invalid model ID or insufficient subscription level to use it."
         assert error_info.original_message == "Model not found."
 
 
-class TestEnhanceKiroErrorUnknown:
+class TestEnhanceOpenCodeErrorUnknown:
     """Tests for unknown error handling."""
     
     def test_unknown_reason_keeps_original_with_suffix(self):
@@ -264,7 +264,7 @@ class TestEnhanceKiroErrorUnknown:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Original message with reason suffix...")
         print(f"User message: {error_info.user_message}")
@@ -284,7 +284,7 @@ class TestEnhanceKiroErrorUnknown:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Reason preserved as original string...")
         assert error_info.reason == "RATE_LIMIT_EXCEEDED"
@@ -301,7 +301,7 @@ class TestEnhanceKiroErrorUnknown:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Reason is UNKNOWN, no suffix in message...")
         assert error_info.reason == "UNKNOWN"
@@ -320,14 +320,14 @@ class TestEnhanceKiroErrorUnknown:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: No redundant (reason: UNKNOWN) suffix...")
         assert error_info.user_message == "Unknown error."
         assert "(reason: UNKNOWN)" not in error_info.user_message
 
 
-class TestEnhanceKiroErrorEdgeCases:
+class TestEnhanceOpenCodeErrorEdgeCases:
     """Tests for edge cases and malformed input."""
     
     def test_empty_error_json_uses_defaults(self):
@@ -339,7 +339,7 @@ class TestEnhanceKiroErrorEdgeCases:
         error_json = {}
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Default values used...")
         assert error_info.original_message == "Unknown error"
@@ -357,7 +357,7 @@ class TestEnhanceKiroErrorEdgeCases:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Default message used, but enhancement still applied...")
         assert error_info.original_message == "Unknown error"
@@ -376,7 +376,7 @@ class TestEnhanceKiroErrorEdgeCases:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Empty string preserved...")
         assert error_info.original_message == ""
@@ -394,7 +394,7 @@ class TestEnhanceKiroErrorEdgeCases:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Defaults used for None values...")
         assert error_info.original_message == "Unknown error"
@@ -414,7 +414,7 @@ class TestEnhanceKiroErrorEdgeCases:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Extra fields don't affect enhancement...")
         assert error_info.user_message == "Model context limit reached. Conversation size exceeds model capacity."
@@ -432,14 +432,14 @@ class TestEnhanceKiroErrorEdgeCases:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Lowercase reason not matched, passed through as-is...")
         assert error_info.reason == "content_length_exceeds_threshold"
         assert error_info.user_message == "Error. (reason: content_length_exceeds_threshold)"
 
 
-class TestEnhanceKiroErrorMessageQuality:
+class TestEnhanceOpenCodeErrorMessageQuality:
     """Tests for message quality and user experience."""
     
     def test_enhanced_message_is_user_friendly(self):
@@ -454,7 +454,7 @@ class TestEnhanceKiroErrorMessageQuality:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Message is user-friendly...")
         message = error_info.user_message
@@ -478,7 +478,7 @@ class TestEnhanceKiroErrorMessageQuality:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Message indicates model limitation...")
         message = error_info.user_message
@@ -497,23 +497,23 @@ class TestEnhanceKiroErrorMessageQuality:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Original message preserved with reason...")
         assert "Service temporarily unavailable" in error_info.user_message
         assert "SERVICE_UNAVAILABLE" in error_info.user_message
 
 
-class TestKiroErrorInfoDataclass:
-    """Tests for KiroErrorInfo dataclass."""
+class TestOpenCodeErrorInfoDataclass:
+    """Tests for OpenCodeErrorInfo dataclass."""
     
-    def test_kiro_error_info_creation(self):
+    def test_opencode_zen_error_info_creation(self):
         """
-        What it does: Verifies KiroErrorInfo can be created with all fields.
+        What it does: Verifies OpenCodeErrorInfo can be created with all fields.
         Purpose: Ensure dataclass structure is correct.
         """
-        print("Setup: Creating KiroErrorInfo...")
-        error_info = KiroErrorInfo(
+        print("Setup: Creating OpenCodeErrorInfo...")
+        error_info = OpenCodeErrorInfo(
             reason="CONTENT_LENGTH_EXCEEDS_THRESHOLD",
             user_message="Test message",
             original_message="Original message"
@@ -524,13 +524,13 @@ class TestKiroErrorInfoDataclass:
         assert error_info.user_message == "Test message"
         assert error_info.original_message == "Original message"
     
-    def test_kiro_error_info_fields_accessible(self):
+    def test_opencode_zen_error_info_fields_accessible(self):
         """
-        What it does: Verifies KiroErrorInfo fields can be accessed.
+        What it does: Verifies OpenCodeErrorInfo fields can be accessed.
         Purpose: Ensure error info structure is usable.
         """
-        print("Setup: Creating KiroErrorInfo...")
-        error_info = KiroErrorInfo(
+        print("Setup: Creating OpenCodeErrorInfo...")
+        error_info = OpenCodeErrorInfo(
             reason="UNKNOWN",
             user_message="Message",
             original_message="Original"
@@ -542,15 +542,15 @@ class TestKiroErrorInfoDataclass:
         assert hasattr(error_info, 'original_message')
 
 
-class TestEnhanceKiroErrorIntegration:
+class TestEnhanceOpenCodeErrorIntegration:
     """Integration tests for real-world scenarios."""
     
     def test_real_world_content_length_error(self):
         """
-        What it does: Verifies enhancement works with real Kiro API error format.
+        What it does: Verifies enhancement works with real OpenCode API error format.
         Purpose: Ensure compatibility with actual Amazon API responses (issue #63).
         """
-        print("Setup: Creating real-world error JSON from Kiro API...")
+        print("Setup: Creating real-world error JSON from OpenCode API...")
         # This is the actual format from issue #63
         error_json = {
             "message": "Input is too long.",
@@ -558,7 +558,7 @@ class TestEnhanceKiroErrorIntegration:
         }
         
         print("Action: Enhancing error...")
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
         
         print("Verification: Real-world error enhanced correctly...")
         assert "Model context limit reached" in error_info.user_message
@@ -576,9 +576,9 @@ class TestEnhanceKiroErrorIntegration:
         error3 = {"message": "Error 3"}
         
         print("Action: Enhancing all errors...")
-        info1 = enhance_kiro_error(error1)
-        info2 = enhance_kiro_error(error2)
-        info3 = enhance_kiro_error(error3)
+        info1 = enhance_opencode_zen_error(error1)
+        info2 = enhance_opencode_zen_error(error2)
+        info3 = enhance_opencode_zen_error(error3)
         
         print("Verification: Each error enhanced independently...")
         assert info1.user_message == "Model context limit reached. Conversation size exceeds model capacity."
@@ -602,7 +602,7 @@ class TestEnhanceImproperlyFormedRequest:
             "message": "Improperly formed request.",
             "reason": None,
         }
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
 
         assert "problem persists" in error_info.user_message
         assert "AsimAftab/opencode-zen-gateway" in error_info.user_message
@@ -611,7 +611,7 @@ class TestEnhanceImproperlyFormedRequest:
     def test_enhance_improperly_formed_request_unknown_reason(self):
         """Same enhancement when reason field is missing (defaults to UNKNOWN)."""
         error_json = {"message": "Improperly formed request."}
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
 
         assert "problem persists" in error_info.user_message
 
@@ -621,7 +621,7 @@ class TestEnhanceImproperlyFormedRequest:
             "message": "Improperly formed request.",
             "reason": "VALIDATION_ERROR",
         }
-        error_info = enhance_kiro_error(error_json)
+        error_info = enhance_opencode_zen_error(error_json)
 
         # Should fall through to generic handler, not the size-limit message
         assert "payload size exceeded" not in error_info.user_message

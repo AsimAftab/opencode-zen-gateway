@@ -694,7 +694,7 @@ class TestChatCompletionUsage:
     def test_credits_used_is_optional(self):
         """
         What it does: Verifies that credits_used is optional.
-        Purpose: Ensure Kiro-specific field is optional.
+        Purpose: Ensure OpenCode-specific field is optional.
         """
         print("Setup: Creating ChatCompletionUsage without credits_used...")
         usage = ChatCompletionUsage()
