@@ -71,7 +71,3 @@ All contributors must sign the Contributor License Agreement (automated via bot)
 - **Bug reports:** [Open an issue](https://github.com/AsimAftab/opencode-zen-gateway/issues)
 - **Feature ideas:** Discuss in an issue first
 - **Questions:** [Start a discussion](https://github.com/AsimAftab/opencode-zen-gateway/discussions)
-
-## Recognition
-
-Contributors are listed in [`CONTRIBUTORS.md`](CONTRIBUTORS.md).
