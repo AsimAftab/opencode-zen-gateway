@@ -1,10 +1,10 @@
-# Contributing to Kiro Gateway
+# Contributing to OpenCode Zen Gateway
 
 Thanks for your interest in contributing!
 
 ## Philosophy
 
-Kiro Gateway is a **transparent proxy** - we fix API-level issues while preserving user intent. When solving problems, we build systems that handle entire classes of issues, not one-off patches. We test paranoidly (happy path + edge cases + error scenarios), write clean code (type hints, docstrings, logging), and make errors actionable for users.
+OpenCode Zen Gateway is a **transparent proxy** - we fix API-level issues while preserving user intent. When solving problems, we build systems that handle entire classes of issues, not one-off patches. We test paranoidly (happy path + edge cases + error scenarios), write clean code (type hints, docstrings, logging), and make errors actionable for users.
 
 ## Getting Started
 
@@ -68,14 +68,10 @@ All contributors must sign the Contributor License Agreement (automated via bot)
 
 ## Questions?
 
-- **Bug reports:** [Open an issue](https://github.com/AsimAftab/kiro-gateway/issues)
+- **Bug reports:** [Open an issue](https://github.com/AsimAftab/opencode-zen-gateway/issues)
 - **Feature ideas:** Discuss in an issue first
-- **Questions:** [Start a discussion](https://github.com/AsimAftab/kiro-gateway/discussions)
+- **Questions:** [Start a discussion](https://github.com/AsimAftab/opencode-zen-gateway/discussions)
 
 ## Recognition
 
 Contributors are listed in [`CONTRIBUTORS.md`](CONTRIBUTORS.md).
-
----
-
-**For detailed guidelines:** See [`AGENTS.md`](AGENTS.md)
