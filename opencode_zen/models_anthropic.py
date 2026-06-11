@@ -134,7 +134,7 @@ class URLImageSource(BaseModel):
     """
     URL-based image source in Anthropic format.
 
-    Note: URL images require fetching and converting to base64 for Kiro API.
+    Note: URL images require fetching and converting to base64 for OpenCode API.
     Currently logged as warning and skipped.
 
     Attributes:
@@ -376,8 +376,8 @@ class AnthropicUsage(BaseModel):
     Attributes:
         input_tokens: Number of input tokens
         output_tokens: Number of output tokens
-        cache_read_input_tokens: Tokens read from prompt cache (only forwarded when explicitly returned by upstream Kiro API)
-        cache_creation_input_tokens: Tokens used to create prompt cache (only forwarded when explicitly returned by upstream Kiro API)
+        cache_read_input_tokens: Tokens read from prompt cache (only forwarded when explicitly returned by upstream OpenCode API)
+        cache_creation_input_tokens: Tokens used to create prompt cache (only forwarded when explicitly returned by upstream OpenCode API)
     """
 
     input_tokens: int

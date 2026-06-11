@@ -18,7 +18,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """
-HTTP client for Kiro API with retry logic support.
+HTTP client for OpenCode API with retry logic support.
 
 Handles:
 - 403: automatic token refresh and retry
@@ -42,9 +42,9 @@ from opencode_zen.config import MAX_RETRIES, BASE_RETRY_DELAY, FIRST_TOKEN_MAX_R
 from opencode_zen.network_errors import classify_network_error, get_short_error_message, NetworkErrorInfo
 
 
-class KiroHttpClient:
+class OpenCodeHttpClient:
     """
-    HTTP client for Kiro API with retry logic support.
+    HTTP client for OpenCode API with retry logic support.
     
     Automatically handles errors and retries requests:
     - 403: refreshes token and retries
@@ -65,12 +65,12 @@ class KiroHttpClient:
     
     Example:
         >>> # Per-request client (legacy mode)
-        >>> client = KiroHttpClient(auth_manager)
+        >>> client = OpenCodeHttpClient(auth_manager)
         >>> response = await client.request_with_retry(...)
         
         >>> # Shared client (recommended)
         >>> shared = httpx.AsyncClient(limits=httpx.Limits(...))
-        >>> client = KiroHttpClient(auth_manager, shared_client=shared)
+        >>> client = OpenCodeHttpClient(auth_manager, shared_client=shared)
         >>> response = await client.request_with_retry(...)
     """
     
@@ -337,7 +337,7 @@ class KiroHttpClient:
                     detail=f"Request failed after {max_retries} attempts. Unknown error."
                 )
     
-    async def __aenter__(self) -> "KiroHttpClient":
+    async def __aenter__(self) -> "OpenCodeHttpClient":
         """Async context manager support."""
         return self
     

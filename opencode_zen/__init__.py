@@ -4,7 +4,7 @@ from opencode_zen.config import APP_VERSION as __version__
 __author__ = "AsimAftab"
 
 from opencode_zen.cache import ModelInfoCache
-from opencode_zen.http_client import KiroHttpClient
+from opencode_zen.http_client import OpenCodeHttpClient
 from opencode_zen.routes_openai import router
 
 from opencode_zen.config import (
@@ -34,7 +34,7 @@ from opencode_zen.exceptions import (
 __all__ = [
     "__version__",
     "ModelInfoCache",
-    "KiroHttpClient",
+    "OpenCodeHttpClient",
     "router",
     "PROXY_API_KEY",
     "HIDDEN_MODELS",

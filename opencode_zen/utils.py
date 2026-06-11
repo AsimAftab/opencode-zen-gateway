@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, List, Dict, Any
 from loguru import logger
 
 if TYPE_CHECKING:
-    from opencode_zen.auth import KiroAuthManager
+    from opencode_zen.auth import OpenCodeAuthManager
 
 
 def get_machine_fingerprint() -> str:
@@ -58,9 +58,9 @@ def get_machine_fingerprint() -> str:
         return hashlib.sha256(b"default-opencode-zen-gateway").hexdigest()
 
 
-def get_kiro_headers(auth_manager: "KiroAuthManager", token: str) -> dict:
+def get_opencode_zen_headers(auth_manager: "OpenCodeAuthManager", token: str) -> dict:
     """
-    Builds headers for Kiro API requests.
+    Builds headers for OpenCode API requests.
     
     Includes all necessary headers for authentication and identification:
     - Authorization with Bearer token
@@ -80,8 +80,8 @@ def get_kiro_headers(auth_manager: "KiroAuthManager", token: str) -> dict:
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/x-amz-json-1.0",
         "x-amz-target": "AmazonCodeWhispererStreamingService.GenerateAssistantResponse",
-        "User-Agent": f"aws-sdk-js/1.0.27 ua/2.1 os/win32#10.0.19044 lang/js md/nodejs#22.21.1 api/codewhispererstreaming#1.0.27 m/E KiroIDE-0.7.45-{fingerprint}",
-        "x-amz-user-agent": f"aws-sdk-js/1.0.27 KiroIDE-0.7.45-{fingerprint}",
+        "User-Agent": f"aws-sdk-js/1.0.27 ua/2.1 os/win32#10.0.19044 lang/js md/nodejs#22.21.1 api/codewhispererstreaming#1.0.27 m/E OpenCodeIDE-0.7.45-{fingerprint}",
+        "x-amz-user-agent": f"aws-sdk-js/1.0.27 OpenCodeIDE-0.7.45-{fingerprint}",
         "x-amzn-codewhisperer-optout": "true",
         "x-amzn-kiro-agent-mode": "vibe",
         "amz-sdk-invocation-id": str(uuid.uuid4()),

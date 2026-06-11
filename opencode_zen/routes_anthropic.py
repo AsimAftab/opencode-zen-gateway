@@ -25,7 +25,7 @@ from opencode_zen.streaming_anthropic import (
     stream_with_first_token_retry_anthropic,
     collect_anthropic_response,
 )
-from opencode_zen.http_client import KiroHttpClient
+from opencode_zen.http_client import OpenCodeHttpClient
 from opencode_zen.utils import generate_conversation_id
 from opencode_zen.mcp_tools import handle_native_web_search
 
@@ -174,9 +174,9 @@ async def messages(
     url = f"{OPENCODE_BASE_URL}/chat/completions"
     
     if request_data.stream:
-        http_client = KiroHttpClient(shared_client=None)
+        http_client = OpenCodeHttpClient(shared_client=None)
     else:
-        http_client = KiroHttpClient(shared_client=request.app.state.http_client)
+        http_client = OpenCodeHttpClient(shared_client=request.app.state.http_client)
         
     messages_for_tokenizer = [msg.model_dump() for msg in request_data.messages]
     tools_for_tokenizer = [tool.model_dump() for tool in request_data.tools] if request_data.tools else None

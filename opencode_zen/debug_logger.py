@@ -67,7 +67,7 @@ class DebugLogger:
         
         # Buffers for "errors" mode
         self._request_body_buffer: Optional[bytes] = None
-        self._kiro_request_body_buffer: Optional[bytes] = None
+        self._opencode_zen_request_body_buffer: Optional[bytes] = None
         self._raw_chunks_buffer: bytearray = bytearray()
         self._modified_chunks_buffer: bytearray = bytearray()
         
@@ -86,7 +86,7 @@ class DebugLogger:
     def _clear_buffers(self):
         """Clears all buffers."""
         self._request_body_buffer = None
-        self._kiro_request_body_buffer = None
+        self._opencode_zen_request_body_buffer = None
         self._raw_chunks_buffer.clear()
         self._modified_chunks_buffer.clear()
         self._clear_app_logs_buffer()
@@ -169,9 +169,9 @@ class DebugLogger:
             # "errors" mode - buffer
             self._request_body_buffer = body
 
-    def log_kiro_request_body(self, body: bytes):
+    def log_opencode_zen_request_body(self, body: bytes):
         """
-        Saves the modified request body (to Kiro API).
+        Saves the modified request body (to OpenCode API).
         
         In "all" mode: writes immediately to file.
         In "errors" mode: buffers.
@@ -180,10 +180,10 @@ class DebugLogger:
             return
 
         if self._is_immediate_write():
-            self._write_kiro_request_body_to_file(body)
+            self._write_opencode_zen_request_body_to_file(body)
         else:
             # "errors" mode - buffer
-            self._kiro_request_body_buffer = body
+            self._opencode_zen_request_body_buffer = body
 
     def log_raw_chunk(self, chunk: bytes):
         """
@@ -272,7 +272,7 @@ class DebugLogger:
         # Check if there's anything to flush
         if not any([
             self._request_body_buffer,
-            self._kiro_request_body_buffer,
+            self._opencode_zen_request_body_buffer,
             self._raw_chunks_buffer,
             self._modified_chunks_buffer
         ]):
@@ -288,8 +288,8 @@ class DebugLogger:
             if self._request_body_buffer:
                 self._write_request_body_to_file(self._request_body_buffer)
             
-            if self._kiro_request_body_buffer:
-                self._write_kiro_request_body_to_file(self._kiro_request_body_buffer)
+            if self._opencode_zen_request_body_buffer:
+                self._write_opencode_zen_request_body_to_file(self._opencode_zen_request_body_buffer)
             
             if self._raw_chunks_buffer:
                 file_path = self.debug_dir / "response_stream_raw.txt"
@@ -345,10 +345,10 @@ class DebugLogger:
         except Exception as e:
             logger.error(f"[DebugLogger] Error writing request_body: {e}")
     
-    def _write_kiro_request_body_to_file(self, body: bytes):
-        """Writes Kiro request body to file."""
+    def _write_opencode_zen_request_body_to_file(self, body: bytes):
+        """Writes OpenCode request body to file."""
         try:
-            file_path = self.debug_dir / "kiro_request_body.json"
+            file_path = self.debug_dir / "opencode_zen_request_body.json"
             try:
                 json_obj = json.loads(body)
                 with open(file_path, "w", encoding="utf-8") as f:
@@ -357,7 +357,7 @@ class DebugLogger:
                 with open(file_path, "wb") as f:
                     f.write(body)
         except Exception as e:
-            logger.error(f"[DebugLogger] Error writing kiro_request_body: {e}")
+            logger.error(f"[DebugLogger] Error writing opencode_zen_request_body: {e}")
     
     def _append_raw_chunk_to_file(self, chunk: bytes):
         """Appends raw chunk to file."""

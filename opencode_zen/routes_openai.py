@@ -32,7 +32,7 @@ from opencode_zen.models_openai import (
     ChatMessage
 )
 from opencode_zen.converters_openai import build_opencode_payload
-from opencode_zen.http_client import KiroHttpClient
+from opencode_zen.http_client import OpenCodeHttpClient
 from opencode_zen.utils import generate_conversation_id
 from opencode_zen.mcp_tools import handle_native_web_search
 
@@ -63,7 +63,7 @@ async def health():
 async def get_models(request: Request):
     logger.info("Request to /v1/models")
     url = f"{OPENCODE_BASE_URL}/models"
-    http_client = KiroHttpClient(shared_client=request.app.state.http_client)
+    http_client = OpenCodeHttpClient(shared_client=request.app.state.http_client)
     
     try:
         response = await http_client.request_with_retry("GET", url)
@@ -166,9 +166,9 @@ async def chat_completions(request: Request, request_data: ChatCompletionRequest
     url = f"{OPENCODE_BASE_URL}/chat/completions"
     
     if request_data.stream:
-        http_client = KiroHttpClient(shared_client=None)
+        http_client = OpenCodeHttpClient(shared_client=None)
     else:
-        http_client = KiroHttpClient(shared_client=request.app.state.http_client)
+        http_client = OpenCodeHttpClient(shared_client=request.app.state.http_client)
 
     try:
         response = await http_client.request_with_retry("POST", url, opencode_payload, stream=True)

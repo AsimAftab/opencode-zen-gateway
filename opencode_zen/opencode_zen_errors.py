@@ -18,19 +18,19 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """
-Kiro API error enhancement and user-friendly message formatting.
+OpenCode API error enhancement and user-friendly message formatting.
 
-This module provides a centralized system for enhancing cryptic Kiro API errors
+This module provides a centralized system for enhancing cryptic OpenCode API errors
 with clear, actionable, user-friendly messages.
 
 Architecture:
-- OpenCodeErrorReason: Enum of known error reasons from Kiro API
+- OpenCodeErrorReason: Enum of known error reasons from OpenCode API
 - OpenCodeErrorInfo: Structured information about an enhanced error
-- enhance_kiro_error(): Analyzes error JSON and returns enhanced message
+- enhance_opencode_zen_error(): Analyzes error JSON and returns enhanced message
 
 Example:
     >>> error_json = {"message": "Input is too long.", "reason": "CONTENT_LENGTH_EXCEEDS_THRESHOLD"}
-    >>> error_info = enhance_kiro_error(error_json)
+    >>> error_info = enhance_opencode_zen_error(error_json)
     >>> print(error_info.user_message)
     "Model context limit reached. Conversation size exceeds model capacity."
 """
@@ -45,31 +45,31 @@ from loguru import logger
 @dataclass
 class OpenCodeErrorInfo:
     """
-    Structured information about a Kiro API error.
+    Structured information about a OpenCode API error.
     
     Contains both the enhanced user-friendly message and the original
     error details for logging and debugging.
     
     Attributes:
-        reason: Error reason code from Kiro API (as string, e.g. "CONTENT_LENGTH_EXCEEDS_THRESHOLD")
+        reason: Error reason code from OpenCode API (as string, e.g. "CONTENT_LENGTH_EXCEEDS_THRESHOLD")
         user_message: Enhanced, user-friendly message for end users
-        original_message: Original message from Kiro API (for logging)
+        original_message: Original message from OpenCode API (for logging)
     """
     reason: str
     user_message: str
     original_message: str
 
 
-def enhance_kiro_error(error_json: Dict[str, Any]) -> OpenCodeErrorInfo:
+def enhance_opencode_zen_error(error_json: Dict[str, Any]) -> OpenCodeErrorInfo:
     """
-    Enhances Kiro API error with user-friendly message.
+    Enhances OpenCode API error with user-friendly message.
     
-    Takes raw error JSON from Kiro API and returns structured information
+    Takes raw error JSON from OpenCode API and returns structured information
     with enhanced, user-friendly messages that help users understand what
     went wrong without technical jargon.
     
     Args:
-        error_json: Parsed JSON from Kiro API error response
+        error_json: Parsed JSON from OpenCode API error response
                    Expected format: {"message": "...", "reason": "..."}
                    The "reason" field is optional.
     
@@ -78,7 +78,7 @@ def enhance_kiro_error(error_json: Dict[str, Any]) -> OpenCodeErrorInfo:
     
     Example:
         >>> error_json = {"message": "Input is too long.", "reason": "CONTENT_LENGTH_EXCEEDS_THRESHOLD"}
-        >>> error_info = enhance_kiro_error(error_json)
+        >>> error_info = enhance_opencode_zen_error(error_json)
         >>> print(error_info.user_message)
         "Model context limit reached. Conversation size exceeds model capacity."
         >>> print(error_info.original_message)
@@ -86,11 +86,11 @@ def enhance_kiro_error(error_json: Dict[str, Any]) -> OpenCodeErrorInfo:
     
     Example (unknown error):
         >>> error_json = {"message": "Something went wrong.", "reason": "UNKNOWN_REASON"}
-        >>> error_info = enhance_kiro_error(error_json)
+        >>> error_info = enhance_opencode_zen_error(error_json)
         >>> print(error_info.user_message)
         "Something went wrong. (reason: UNKNOWN_REASON)"
     """
-    # Extract original message and reason from Kiro API response
+    # Extract original message and reason from OpenCode API response
     # Handle None values explicitly (preserve empty strings)
     original_message = error_json.get("message")
     if original_message is None:
@@ -116,7 +116,7 @@ def enhance_kiro_error(error_json: Dict[str, Any]) -> OpenCodeErrorInfo:
     elif original_message == "Improperly formed request." and reason in (None, "UNKNOWN", "null"):
         # Generic 400 error
         user_message = (
-            "Kiro API rejected the request. If problem persists, open issue with info and attached debug logs at:"
+            "OpenCode API rejected the request. If problem persists, open issue with info and attached debug logs at:"
             "https://github.com/AsimAftab/opencode-zen-gateway/issues"
         )
 

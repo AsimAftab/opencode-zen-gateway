@@ -18,9 +18,9 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """
-Payload size guard for Kiro API requests.
+Payload size guard for OpenCode API requests.
 
-The Kiro API rejects payloads exceeding ~615KB with a misleading
+The OpenCode API rejects payloads exceeding ~615KB with a misleading
 "Improperly formed request." (reason: null) error. This module provides:
 - Pre-flight size checking
 - Auto-trimming of oldest history entries to fit under the limit
@@ -49,7 +49,7 @@ def check_payload_size(payload: Dict[str, Any]) -> int:
 
 
 def _strip_empty_tool_uses(history: list) -> None:
-    """Remove empty toolUses arrays in-place (Kiro quirk)."""
+    """Remove empty toolUses arrays in-place (OpenCode quirk)."""
     for entry in history:
         assistant = entry.get("assistantResponseMessage")
         if assistant and "toolUses" in assistant and assistant["toolUses"] == []:

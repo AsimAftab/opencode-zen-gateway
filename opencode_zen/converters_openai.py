@@ -18,7 +18,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """
-Converters for transforming OpenAI format to Kiro format.
+Converters for transforming OpenAI format to OpenCode format.
 
 This module is an adapter layer that converts OpenAI-specific formats
 to the unified format used by converters_core.py.
@@ -26,7 +26,7 @@ to the unified format used by converters_core.py.
 Contains functions for:
 - Converting OpenAI messages to unified format
 - Converting OpenAI tools to unified format
-- Building Kiro payload from OpenAI requests
+- Building OpenCode payload from OpenAI requests
 """
 
 from typing import Any, Dict, List, Optional, Tuple
@@ -396,9 +396,9 @@ def build_opencode_payload(
     profile_arn: str
 ) -> dict:
     """
-    Builds complete payload for Kiro API from OpenAI request.
+    Builds complete payload for OpenCode API from OpenAI request.
     
-    This is the main entry point for OpenAI → Kiro conversion.
+    This is the main entry point for OpenAI → OpenCode conversion.
     Uses the core build_opencode_payload function with OpenAI-specific adapters.
     
     Args:
@@ -407,7 +407,7 @@ def build_opencode_payload(
         profile_arn: AWS CodeWhisperer profile ARN
     
     Returns:
-        Payload dictionary for POST request to Kiro API
+        Payload dictionary for POST request to OpenCode API
     
     Raises:
         ValueError: If there are no messages to send
@@ -418,8 +418,8 @@ def build_opencode_payload(
     # Convert tools to unified format
     unified_tools = convert_openai_tools_to_unified(request_data.tools)
     
-    # Get model ID for Kiro API (normalizes + resolves hidden models)
-    # Pass-through principle: we normalize and send to Kiro, Kiro decides if valid
+    # Get model ID for OpenCode API (normalizes + resolves hidden models)
+    # Pass-through principle: we normalize and send to OpenCode, OpenCode decides if valid
     model_id = get_model_id_for_kiro(request_data.model, HIDDEN_MODELS)
     
     # Extract thinking configuration from reasoning_effort

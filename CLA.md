@@ -97,7 +97,6 @@ By submitting a pull request or other Contribution to this Project, you signify 
 
 For significant contributions, you may be asked to explicitly confirm your acceptance by:
 
-1. Adding your name to the [CONTRIBUTORS.md](CONTRIBUTORS.md) file (if it exists)
 2. Commenting "I have read the CLA and I accept its terms" on your pull request
 3. Signing via a CLA bot (if implemented)
 

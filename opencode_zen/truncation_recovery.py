@@ -18,12 +18,12 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """
-Truncation recovery system for handling upstream Kiro API limitations.
+Truncation recovery system for handling upstream OpenCode API limitations.
 
 Generates synthetic messages to inform the model about truncation.
 ONLY activates when truncation is actually detected.
 
-This module addresses Issue #56 - Kiro API truncates large tool call payloads
+This module addresses Issue #56 - OpenCode API truncates large tool call payloads
 and content mid-stream. Since this is an upstream limitation that cannot be
 prevented, we inform the model about the truncation so it can adapt its approach.
 """

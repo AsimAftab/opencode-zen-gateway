@@ -21,12 +21,12 @@
 Dynamic Model Resolution System for OpenCode Zen Gateway.
 
 Implements a 4-layer resolution pipeline:
-1. Normalize Name - Convert client formats to Kiro format (dashes→dots, strip dates)
+1. Normalize Name - Convert client formats to OpenCode format (dashes→dots, strip dates)
 2. Check Dynamic Cache - Models from /ListAvailableModels API
 3. Check Hidden Models - Manual config for undocumented models
-4. Pass-through - Unknown models sent to Kiro (let Kiro decide)
+4. Pass-through - Unknown models sent to OpenCode (let OpenCode decide)
 
-Key Principle: We are a gateway, not a gatekeeper. Kiro API is the final arbiter.
+Key Principle: We are a gateway, not a gatekeeper. OpenCode API is the final arbiter.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from opencode_zen.cache import ModelInfoCache
 
 
-# Valid model IDs accepted by runtime.{region}.kiro.dev
+# Valid model IDs accepted by runtime.{region}.opencode_zen.dev
 # Generated from FALLBACK_MODELS to maintain single source of truth
 from opencode_zen.config import FALLBACK_MODELS
 
@@ -50,11 +50,11 @@ VALID_RUNTIME_MODEL_IDS: set = {model["modelId"] for model in FALLBACK_MODELS}
 
 def to_runtime_model_id(normalized: str) -> str:
     """
-    Pass-through function for runtime.kiro.dev model ID.
+    Pass-through function for runtime.opencode_zen.dev model ID.
     
     Previously performed fallback to "auto" for unknown models, but this violated
     the "gateway, not gatekeeper" principle. Now returns model as-is and lets
-    Kiro API decide if the model exists.
+    OpenCode API decide if the model exists.
     
     Args:
         normalized: Normalized model name
@@ -71,7 +71,7 @@ class ModelResolution:
     Result of model resolution.
     
     Attributes:
-        internal_id: ID to send to Kiro API
+        internal_id: ID to send to OpenCode API
         source: Resolution source - "cache", "hidden", or "passthrough"
         original_request: What client originally sent
         normalized: Model name after normalization
@@ -86,7 +86,7 @@ class ModelResolution:
 
 def normalize_model_name(name: str) -> str:
     """
-    Normalize client model name to Kiro format.
+    Normalize client model name to OpenCode format.
     
     Transformations applied:
     1. claude-haiku-4-5 → claude-haiku-4.5 (dash to dot for minor version)
@@ -101,7 +101,7 @@ def normalize_model_name(name: str) -> str:
         name: External model name from client
     
     Returns:
-        Normalized model name in Kiro format
+        Normalized model name in OpenCode format
     
     Examples:
         >>> normalize_model_name("claude-haiku-4-5-20251001")
@@ -191,20 +191,20 @@ def normalize_model_name(name: str) -> str:
 
 def get_model_id_for_kiro(model_name: str, hidden_models: Dict[str, str]) -> str:
     """
-    Get the model ID to send to Kiro API.
+    Get the model ID to send to OpenCode API.
     
     This is a simple helper for converters that don't have access to the full
     ModelResolver. It normalizes the name and checks hidden models.
     
-    For hidden models (like claude-3.7-sonnet), returns the internal Kiro ID.
+    For hidden models (like claude-3.7-sonnet), returns the internal OpenCode ID.
     For regular models, returns the normalized name.
     
     Args:
         model_name: External model name from client
-        hidden_models: Dict mapping display names to internal Kiro IDs
+        hidden_models: Dict mapping display names to internal OpenCode IDs
     
     Returns:
-        Model ID to send to Kiro API
+        Model ID to send to OpenCode API
     
     Examples:
         >>> get_model_id_for_kiro("claude-haiku-4-5-20251001", {})
@@ -250,18 +250,18 @@ class ModelResolver:
     Dynamic model resolver with normalization and optimistic pass-through.
     
     Key principle: We are a gateway, not a gatekeeper.
-    Kiro API is the final arbiter of what models exist.
+    OpenCode API is the final arbiter of what models exist.
     
     Resolution layers:
     0. Resolve aliases (custom name mappings)
     1. Normalize name (dashes→dots, strip dates)
     2. Check dynamic cache (from /ListAvailableModels)
     3. Check hidden models (manual config)
-    4. Pass-through (let Kiro decide)
+    4. Pass-through (let OpenCode decide)
     
     Attributes:
         cache: ModelInfoCache instance for dynamic model lookup
-        hidden_models: Dict mapping display names to internal Kiro IDs
+        hidden_models: Dict mapping display names to internal OpenCode IDs
         aliases: Dict mapping alias names to real model IDs
         hidden_from_list: Set of model IDs to hide from /v1/models endpoint
     
@@ -286,7 +286,7 @@ class ModelResolver:
         
         Args:
             cache: ModelInfoCache instance for dynamic model lookup
-            hidden_models: Dict mapping display names to internal Kiro IDs.
+            hidden_models: Dict mapping display names to internal OpenCode IDs.
                           Display names should use dot format (e.g., "claude-3.7-sonnet")
             aliases: Dict mapping alias names to real model IDs.
                     Example: {"auto-kiro": "auto", "my-opus": "claude-opus-4.5"}
@@ -300,11 +300,11 @@ class ModelResolver:
     
     def resolve(self, external_model: str) -> ModelResolution:
         """
-        Resolve external model name to internal Kiro ID.
+        Resolve external model name to internal OpenCode ID.
         
         NEVER raises - always returns a resolution.
-        If model is not in cache/hidden, we pass it through to Kiro.
-        Kiro will be the final judge.
+        If model is not in cache/hidden, we pass it through to OpenCode.
+        OpenCode will be the final judge.
         
         Args:
             external_model: Model name from client request
@@ -372,7 +372,7 @@ class ModelResolver:
         Get list of all available model IDs for /v1/models endpoint.
         
         Combines:
-        - Models from dynamic cache (Kiro API)
+        - Models from dynamic cache (OpenCode API)
         - Hidden models (manual config)
         - Alias names (custom mappings)
         

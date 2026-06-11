@@ -18,16 +18,16 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """
-Core converters for transforming API formats to Kiro format.
+Core converters for transforming API formats to OpenCode format.
 
 This module contains shared logic used by both OpenAI and Anthropic converters:
 - Text content extraction from various formats
 - Message merging and processing
-- Kiro payload building
+- OpenCode payload building
 - Tool processing and sanitization
 
 The core layer provides a unified interface that API-specific adapters use
-to convert their formats to Kiro API format.
+to convert their formats to OpenCode API format.
 """
 
 import json
@@ -41,7 +41,7 @@ from opencode_zen.config import (
     FAKE_REASONING_ENABLED,
     FAKE_REASONING_MAX_TOKENS,
     FAKE_REASONING_BUDGET_CAP,
-    KIRO_MAX_PAYLOAD_BYTES,
+    OPENCODE_ZEN_MAX_PAYLOAD_BYTES,
     AUTO_TRIM_PAYLOAD,
 )
 from opencode_zen.payload_guards import check_payload_size, trim_payload_to_limit
@@ -86,7 +86,7 @@ class UnifiedMessage:
     Unified message format used internally by converters.
     
     This format is API-agnostic and can be created from both OpenAI and Anthropic formats.
-    Serves as the canonical representation for all message data before conversion to Kiro API.
+    Serves as the canonical representation for all message data before conversion to OpenCode API.
     
     Attributes:
         role: Message role (user, assistant, system)
@@ -119,12 +119,12 @@ class UnifiedTool:
 
 
 @dataclass
-class KiroPayloadResult:
+class OpenCodePayloadResult:
     """
-    Result of building Kiro payload.
+    Result of building OpenCode payload.
     
     Attributes:
-        payload: The complete Kiro API payload
+        payload: The complete OpenCode API payload
         tool_documentation: Documentation for tools with long descriptions (to add to system prompt)
     """
     payload: Dict[str, Any]
@@ -249,8 +249,8 @@ def extract_images_from_content(content: Any) -> List[Dict[str, Any]]:
                 except (ValueError, IndexError) as e:
                     logger.warning(f"Failed to parse image data URL: {e}")
             elif url.startswith("http"):
-                # URL-based images require fetching - not supported by Kiro API directly
-                logger.warning(f"URL-based images are not supported by Kiro API, skipping: {url[:80]}...")
+                # URL-based images require fetching - not supported by OpenCode API directly
+                logger.warning(f"URL-based images are not supported by OpenCode API, skipping: {url[:80]}...")
         
         # Anthropic format: {"type": "image", "source": {"type": "base64", "media_type": "...", "data": "..."}}
         elif item_type == "image":
@@ -274,7 +274,7 @@ def extract_images_from_content(content: Any) -> List[Dict[str, Any]]:
                 elif source_type == "url":
                     # URL-based images in Anthropic format
                     url = source.get("url", "")
-                    logger.warning(f"URL-based images are not supported by Kiro API, skipping: {url[:80]}...")
+                    logger.warning(f"URL-based images are not supported by OpenCode API, skipping: {url[:80]}...")
             
             # Handle Pydantic model objects (ImageContentBlock.source)
             elif hasattr(source, "type"):
@@ -289,7 +289,7 @@ def extract_images_from_content(content: Any) -> List[Dict[str, Any]]:
                         })
                 elif source.type == "url":
                     url = getattr(source, "url", "")
-                    logger.warning(f"URL-based images are not supported by Kiro API, skipping: {url[:80]}...")
+                    logger.warning(f"URL-based images are not supported by OpenCode API, skipping: {url[:80]}...")
     
     if images:
         logger.debug(f"Extracted {len(images)} image(s) from content")
@@ -438,9 +438,9 @@ def inject_thinking_tags(content: str, thinking_config: ThinkingConfig) -> str:
 
 def sanitize_json_schema(schema: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """
-    Sanitizes JSON Schema from fields that Kiro API doesn't accept.
+    Sanitizes JSON Schema from fields that OpenCode API doesn't accept.
     
-    Kiro API returns 400 "Improperly formed request" error if:
+    OpenCode API returns 400 "Improperly formed request" error if:
     - required is an empty array []
     - additionalProperties is present in schema
     
@@ -462,7 +462,7 @@ def sanitize_json_schema(schema: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         if key == "required" and isinstance(value, list) and len(value) == 0:
             continue
         
-        # Skip additionalProperties - Kiro API doesn't support it
+        # Skip additionalProperties - OpenCode API doesn't support it
         if key == "additionalProperties":
             continue
         
@@ -496,7 +496,7 @@ def process_tools_with_long_descriptions(
     """
     Processes tools with long descriptions.
     
-    Kiro API has a limit on description length in toolSpecification.
+    OpenCode API has a limit on description length in toolSpecification.
     If description exceeds the limit, full description is moved to system prompt,
     and a reference to documentation remains in the tool.
     
@@ -559,7 +559,7 @@ def process_tools_with_long_descriptions(
 
 def validate_tool_names(tools: Optional[List[UnifiedTool]]) -> None:
     """
-    Validates tool names against Kiro API 64-character limit.
+    Validates tool names against OpenCode API 64-character limit.
     
     Logs WARNING for each problematic tool and raises ValueError
     with complete list of violations.
@@ -592,38 +592,38 @@ def validate_tool_names(tools: Optional[List[UnifiedTool]]) -> None:
         ])
         
         raise ValueError(
-            f"Tool name(s) exceed Kiro API limit of 64 characters:\n"
+            f"Tool name(s) exceed OpenCode API limit of 64 characters:\n"
             f"{tool_list}\n\n"
             f"Solution: Use shorter tool names (max 64 characters).\n"
             f"Example: 'get_user_data' instead of 'get_authenticated_user_profile_data_with_extended_information_about_it'"
         )
 
 
-def convert_tools_to_kiro_format(tools: Optional[List[UnifiedTool]]) -> List[Dict[str, Any]]:
+def convert_tools_to_opencode_zen_format(tools: Optional[List[UnifiedTool]]) -> List[Dict[str, Any]]:
     """
-    Converts unified tools to Kiro API format.
+    Converts unified tools to OpenCode API format.
     
     Args:
         tools: List of tools in unified format
     
     Returns:
-        List of tools in Kiro toolSpecification format
+        List of tools in OpenCode toolSpecification format
     """
     if not tools:
         return []
     
-    kiro_tools = []
+    opencode_zen_tools = []
     for tool in tools:
-        # Sanitize parameters from fields that Kiro API doesn't accept
+        # Sanitize parameters from fields that OpenCode API doesn't accept
         sanitized_params = sanitize_json_schema(tool.input_schema)
         
-        # Kiro API requires non-empty description
+        # OpenCode API requires non-empty description
         description = tool.description
         if not description or not description.strip():
             description = f"Tool: {tool.name}"
             logger.debug(f"Tool '{tool.name}' has empty description, using placeholder")
         
-        kiro_tools.append({
+        opencode_zen_tools.append({
             "toolSpecification": {
                 "name": tool.name,
                 "description": description,
@@ -631,22 +631,22 @@ def convert_tools_to_kiro_format(tools: Optional[List[UnifiedTool]]) -> List[Dic
             }
         })
     
-    return kiro_tools
+    return opencode_zen_tools
 
 
 # ==================================================================================================
-# Image Conversion to Kiro Format
+# Image Conversion to OpenCode Format
 # ==================================================================================================
 
-def convert_images_to_kiro_format(images: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+def convert_images_to_opencode_zen_format(images: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
     """
-    Converts unified images to Kiro API format.
+    Converts unified images to OpenCode API format.
     
     Unified format: [{"media_type": "image/jpeg", "data": "base64..."}]
-    Kiro format: [{"format": "jpeg", "source": {"bytes": "base64..."}}]
+    OpenCode format: [{"format": "jpeg", "source": {"bytes": "base64..."}}]
     
     IMPORTANT: Images must be placed directly in userInputMessage.images,
-    NOT in userInputMessageContext.images. This matches the native Kiro IDE format.
+    NOT in userInputMessageContext.images. This matches the native OpenCode IDE format.
     
     Also handles the case where data contains a full data URL (data:image/jpeg;base64,...)
     by stripping the prefix and extracting pure base64.
@@ -655,16 +655,16 @@ def convert_images_to_kiro_format(images: Optional[List[Dict[str, Any]]]) -> Lis
         images: List of images in unified format
     
     Returns:
-        List of images in Kiro format, ready for userInputMessage.images
+        List of images in OpenCode format, ready for userInputMessage.images
     
     Example:
-        >>> convert_images_to_kiro_format([{"media_type": "image/png", "data": "abc123"}])
+        >>> convert_images_to_opencode_zen_format([{"media_type": "image/png", "data": "abc123"}])
         [{'format': 'png', 'source': {'bytes': 'abc123'}}]
     """
     if not images:
         return []
     
-    kiro_images = []
+    opencode_zen_images = []
     for img in images:
         media_type = img.get("media_type", "image/jpeg")
         data = img.get("data", "")
@@ -674,7 +674,7 @@ def convert_images_to_kiro_format(images: Optional[List[Dict[str, Any]]]) -> Lis
             continue
         
         # Strip data URL prefix if present (some clients send "data:image/jpeg;base64,..." in data field)
-        # Kiro API expects pure base64 without the prefix
+        # OpenCode API expects pure base64 without the prefix
         if data.startswith("data:"):
             try:
                 header, actual_data = data.split(",", 1)
@@ -691,37 +691,37 @@ def convert_images_to_kiro_format(images: Optional[List[Dict[str, Any]]]) -> Lis
         # Extract format from media_type: "image/jpeg" -> "jpeg"
         format_str = media_type.split("/")[-1] if "/" in media_type else media_type
         
-        kiro_images.append({
+        opencode_zen_images.append({
             "format": format_str,
             "source": {
                 "bytes": data
             }
         })
     
-    if kiro_images:
-        logger.debug(f"Converted {len(kiro_images)} image(s) to Kiro format")
+    if opencode_zen_images:
+        logger.debug(f"Converted {len(opencode_zen_images)} image(s) to OpenCode format")
     
-    return kiro_images
+    return opencode_zen_images
 
 
 # ==================================================================================================
 # Tool Results and Tool Uses Extraction
 # ==================================================================================================
 
-def convert_tool_results_to_kiro_format(tool_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def convert_tool_results_to_opencode_zen_format(tool_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
-    Converts unified tool results to Kiro API format.
+    Converts unified tool results to OpenCode API format.
     
     Unified format: {"type": "tool_result", "tool_use_id": "...", "content": "..."}
-    Kiro format: {"content": [{"text": "..."}], "status": "success", "toolUseId": "..."}
+    OpenCode format: {"content": [{"text": "..."}], "status": "success", "toolUseId": "..."}
     
     Args:
         tool_results: List of tool results in unified format
     
     Returns:
-        List of tool results in Kiro format
+        List of tool results in OpenCode format
     """
-    kiro_results = []
+    opencode_zen_results = []
     for tr in tool_results:
         content = tr.get("content", "")
         if isinstance(content, str):
@@ -729,17 +729,17 @@ def convert_tool_results_to_kiro_format(tool_results: List[Dict[str, Any]]) -> L
         else:
             content_text = extract_text_content(content)
         
-        # Ensure content is not empty - Kiro API requires non-empty content
+        # Ensure content is not empty - OpenCode API requires non-empty content
         if not content_text:
             content_text = "(empty result)"
         
-        kiro_results.append({
+        opencode_zen_results.append({
             "content": [{"text": content_text}],
             "status": "success",
             "toolUseId": tr.get("tool_use_id", "")
         })
     
-    return kiro_results
+    return opencode_zen_results
 
 
 def extract_tool_results_from_content(content: Any) -> List[Dict[str, Any]]:
@@ -747,13 +747,13 @@ def extract_tool_results_from_content(content: Any) -> List[Dict[str, Any]]:
     Extracts tool results from message content.
     
     Looks for content blocks with type="tool_result" and converts them
-    to Kiro API format.
+    to OpenCode API format.
     
     Args:
         content: Message content (can be a list of content blocks)
     
     Returns:
-        List of tool results in Kiro format
+        List of tool results in OpenCode format
     """
     tool_results = []
     
@@ -785,7 +785,7 @@ def extract_tool_uses_from_message(
         tool_calls: List of tool calls (OpenAI format)
     
     Returns:
-        List of tool uses in Kiro format
+        List of tool uses in OpenCode format
     """
     tool_uses = []
     
@@ -912,7 +912,7 @@ def strip_all_tool_content(messages: List[UnifiedMessage]) -> Tuple[List[Unified
     """
     Strips ALL tool-related content from messages, converting it to text representation.
     
-    This is used when no tools are defined in the request. Kiro API rejects
+    This is used when no tools are defined in the request. OpenCode API rejects
     requests that have toolResults but no tools defined.
     
     Instead of simply removing tool content, this function converts tool_calls
@@ -996,14 +996,14 @@ def ensure_assistant_before_tool_results(messages: List[UnifiedMessage]) -> Tupl
     """
     Ensures that messages with tool_results have a preceding assistant message with tool_calls.
     
-    Kiro API requires that when toolResults are present, there must be a preceding
+    OpenCode API requires that when toolResults are present, there must be a preceding
     assistantResponseMessage with toolUses. Some clients (like Cline/Roo/Cursor) may send
     truncated conversations where the assistant message is missing.
     
     Since we don't know the original tool name and arguments when the assistant message
     is missing, we cannot create a valid synthetic assistant message. Instead, we convert
     the tool_results to text representation and append to the message content, preserving
-    the context for the model while avoiding Kiro API rejection.
+    the context for the model while avoiding OpenCode API rejection.
     
     Args:
         messages: List of messages in unified format
@@ -1031,7 +1031,7 @@ def ensure_assistant_before_tool_results(messages: List[UnifiedMessage]) -> Tupl
             
             if not has_preceding_assistant:
                 # We cannot create a valid synthetic assistant message because we don't know
-                # the original tool name and arguments. Kiro API validates tool names.
+                # the original tool name and arguments. OpenCode API validates tool names.
                 # Convert tool_results to text to preserve context for the model.
                 logger.debug(
                     f"Converting {len(msg.tool_results)} orphaned tool_results to text "
@@ -1072,7 +1072,7 @@ def merge_adjacent_messages(messages: List[UnifiedMessage]) -> List[UnifiedMessa
     """
     Merges adjacent messages with the same role.
     
-    Kiro API does not accept multiple consecutive messages from the same role.
+    OpenCode API does not accept multiple consecutive messages from the same role.
     This function merges such messages into one.
     
     Args:
@@ -1156,7 +1156,7 @@ def ensure_first_message_is_user(messages: List[UnifiedMessage]) -> List[Unified
     """
     Ensures that the first message in the conversation is from user role.
     
-    Kiro API requires conversations to start with a user message. If the first
+    OpenCode API requires conversations to start with a user message. If the first
     message is from assistant (or any other non-user role), we prepend a minimal
     synthetic user message.
     
@@ -1187,7 +1187,7 @@ def ensure_first_message_is_user(messages: List[UnifiedMessage]) -> List[Unified
     if messages[0].role != "user":
         logger.debug(
             f"First message is '{messages[0].role}', prepending synthetic user message "
-            f"(Kiro API requires conversations to start with user)"
+            f"(OpenCode API requires conversations to start with user)"
         )
         # Create minimal synthetic user message (matches LiteLLM behavior)
         # Using "(empty placeholder)" as minimal valid content to avoid disrupting conversation context
@@ -1205,7 +1205,7 @@ def normalize_message_roles(messages: List[UnifiedMessage]) -> List[UnifiedMessa
     """
     Normalizes unknown message roles to 'user'.
     
-    Kiro API only supports 'user' and 'assistant' roles in history.
+    OpenCode API only supports 'user' and 'assistant' roles in history.
     Any other role (e.g., 'developer', 'system') is converted to 'user'
     to maintain compatibility.
     
@@ -1260,12 +1260,12 @@ def ensure_alternating_roles(messages: List[UnifiedMessage]) -> List[UnifiedMess
     """
     Ensures alternating user/assistant roles by inserting synthetic assistant messages.
     
-    Kiro API requires alternating userInputMessage and assistantResponseMessage.
+    OpenCode API requires alternating userInputMessage and assistantResponseMessage.
     When consecutive user messages are detected, synthetic assistant messages
     with "(empty placeholder)" placeholder are inserted between them to maintain alternation.
     
     This fixes multiple unknown roles (converted to user)
-    create consecutive userInputMessage entries that violate Kiro API requirements.
+    create consecutive userInputMessage entries that violate OpenCode API requirements.
     
     Args:
         messages: List of messages in unified format
@@ -1300,7 +1300,7 @@ def ensure_alternating_roles(messages: List[UnifiedMessage]) -> List[UnifiedMess
         if msg.role == "user" and prev_role == "user":
             synthetic_assistant = UnifiedMessage(
                 role="assistant",
-                content="(empty placeholder)"  # Consistent with build_kiro_history() placeholder
+                content="(empty placeholder)"  # Consistent with build_opencode_zen_history() placeholder
             )
             result.append(synthetic_assistant)
             synthetic_count += 1
@@ -1314,25 +1314,25 @@ def ensure_alternating_roles(messages: List[UnifiedMessage]) -> List[UnifiedMess
 
 
 # ==================================================================================================
-# Kiro History Building
+# OpenCode History Building
 # ==================================================================================================
 
-def build_kiro_history(messages: List[UnifiedMessage], model_id: str) -> List[Dict[str, Any]]:
+def build_opencode_zen_history(messages: List[UnifiedMessage], model_id: str) -> List[Dict[str, Any]]:
     """
-    Builds history array for Kiro API from unified messages.
+    Builds history array for OpenCode API from unified messages.
     
-    Kiro API expects alternating userInputMessage and assistantResponseMessage.
-    This function converts unified format to Kiro format.
+    OpenCode API expects alternating userInputMessage and assistantResponseMessage.
+    This function converts unified format to OpenCode format.
     
     All messages should have 'user' or 'assistant' roles at this point,
     as unknown roles are normalized earlier in the pipeline by normalize_message_roles().
     
     Args:
         messages: List of messages in unified format (with normalized roles)
-        model_id: Internal Kiro model ID
+        model_id: Internal OpenCode model ID
     
     Returns:
-        List of dictionaries for history field in Kiro API
+        List of dictionaries for history field in OpenCode API
     """
     history = []
     
@@ -1340,7 +1340,7 @@ def build_kiro_history(messages: List[UnifiedMessage], model_id: str) -> List[Di
         if msg.role == "user":
             content = extract_text_content(msg.content)
             
-            # Fallback for empty content - Kiro API requires non-empty content
+            # Fallback for empty content - OpenCode API requires non-empty content
             if not content:
                 content = "(empty placeholder)"
             
@@ -1352,23 +1352,23 @@ def build_kiro_history(messages: List[UnifiedMessage], model_id: str) -> List[Di
             
             # Process images - extract from message or content
             # IMPORTANT: images go directly into userInputMessage, NOT into userInputMessageContext
-            # This matches the native Kiro IDE format
+            # This matches the native OpenCode IDE format
             images = msg.images or extract_images_from_content(msg.content)
             if images:
-                kiro_images = convert_images_to_kiro_format(images)
-                if kiro_images:
-                    user_input["images"] = kiro_images
+                opencode_zen_images = convert_images_to_opencode_zen_format(images)
+                if opencode_zen_images:
+                    user_input["images"] = opencode_zen_images
             
             # Build userInputMessageContext for tools and toolResults only
             user_input_context: Dict[str, Any] = {}
             
-            # Process tool_results - convert to Kiro format if present
+            # Process tool_results - convert to OpenCode format if present
             if msg.tool_results:
-                kiro_tool_results = convert_tool_results_to_kiro_format(msg.tool_results)
-                if kiro_tool_results:
-                    user_input_context["toolResults"] = kiro_tool_results
+                opencode_zen_tool_results = convert_tool_results_to_opencode_zen_format(msg.tool_results)
+                if opencode_zen_tool_results:
+                    user_input_context["toolResults"] = opencode_zen_tool_results
             else:
-                # Try to extract from content (already in Kiro format)
+                # Try to extract from content (already in OpenCode format)
                 tool_results = extract_tool_results_from_content(msg.content)
                 if tool_results:
                     user_input_context["toolResults"] = tool_results
@@ -1382,7 +1382,7 @@ def build_kiro_history(messages: List[UnifiedMessage], model_id: str) -> List[Di
         elif msg.role == "assistant":
             content = extract_text_content(msg.content)
             
-            # Fallback for empty content - Kiro API requires non-empty content
+            # Fallback for empty content - OpenCode API requires non-empty content
             if not content:
                 content = "(empty placeholder)"
             
@@ -1410,7 +1410,7 @@ def build_opencode_payload(
     conversation_id: str,
     profile_arn: str,
     thinking_config: ThinkingConfig
-) -> KiroPayloadResult:
+) -> OpenCodePayloadResult:
     """
     Builds OpenAI API payload from unified data (named build_opencode_payload for compatibility).
     """
@@ -1488,7 +1488,7 @@ def build_opencode_payload(
             for t in processed_tools
         ]
         
-    return KiroPayloadResult(payload=payload, tool_documentation=tool_documentation)
+    return OpenCodePayloadResult(payload=payload, tool_documentation=tool_documentation)
 
 def build_openai_payload(
     messages: List[UnifiedMessage],

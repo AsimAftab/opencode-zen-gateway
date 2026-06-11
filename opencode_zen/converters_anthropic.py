@@ -18,7 +18,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """
-Converters for transforming Anthropic Messages API format to Kiro format.
+Converters for transforming Anthropic Messages API format to OpenCode format.
 
 This module is an adapter layer that converts Anthropic-specific formats
 to the unified format used by converters_core.py.
@@ -84,7 +84,7 @@ def extract_system_prompt(system: Any) -> str:
     2. List of content blocks: [{"type": "text", "text": "...", "cache_control": {...}}]
 
     The second format is used for prompt caching with cache_control.
-    We extract only the text, ignoring cache_control (not supported by Kiro).
+    We extract only the text, ignoring cache_control (not supported by OpenCode).
 
     Args:
         system: System prompt in string or list format
@@ -200,8 +200,6 @@ def extract_images_from_tool_results(content: Any) -> List[Dict[str, Any]]:
         logger.debug(f"Extracted {len(images)} image(s) from tool_result content")
 
     return images
-
-    return tool_results
 
 
 def extract_tool_uses_from_anthropic_content(content: Any) -> List[Dict[str, Any]]:
@@ -430,9 +428,9 @@ def anthropic_to_opencode(
     request: AnthropicMessagesRequest, conversation_id: str, profile_arn: str
 ) -> dict:
     """
-    Converts Anthropic Messages API request to Kiro API payload.
+    Converts Anthropic Messages API request to OpenCode API payload.
 
-    This is the main entry point for Anthropic → Kiro conversion.
+    This is the main entry point for Anthropic → OpenCode conversion.
 
     Key differences from OpenAI:
     - System prompt is a separate field (not in messages)
@@ -445,7 +443,7 @@ def anthropic_to_opencode(
         profile_arn: AWS CodeWhisperer profile ARN
 
     Returns:
-        Payload dictionary for POST request to Kiro API
+        Payload dictionary for POST request to OpenCode API
 
     Raises:
         ValueError: If there are no messages to send
@@ -460,8 +458,8 @@ def anthropic_to_opencode(
     # It can be a string or list of content blocks (for prompt caching)
     system_prompt = extract_system_prompt(request.system)
 
-    # Get model ID for Kiro API (normalizes + resolves hidden models)
-    # Pass-through principle: we normalize and send to Kiro, Kiro decides if valid
+    # Get model ID for OpenCode API (normalizes + resolves hidden models)
+    # Pass-through principle: we normalize and send to OpenCode, OpenCode decides if valid
     model_id = get_model_id_for_kiro(request.model, HIDDEN_MODELS)
 
     # Extract thinking configuration from thinking parameter

@@ -30,7 +30,7 @@ The middleware:
 4. Passes the request to the next handler
 
 Flush/discard operations are handled by:
-- Route handlers (for successful requests and Kiro API errors)
+- Route handlers (for successful requests and OpenCode API errors)
 - Exception handlers (for validation errors and other exceptions)
 """
 
@@ -63,7 +63,7 @@ class DebugLoggerMiddleware(BaseHTTPMiddleware):
     Lifecycle:
     - prepare_new_request(): Called here (before validation)
     - log_request_body(): Called here (raw body from client)
-    - log_kiro_request_body(): Called in route handlers (transformed payload)
+    - log_opencode_zen_request_body(): Called in route handlers (transformed payload)
     - flush_on_error() / discard_buffers(): Called in routes or exception handlers
     """
     
@@ -108,7 +108,7 @@ class DebugLoggerMiddleware(BaseHTTPMiddleware):
         
         # Continue to validation and route handler
         # flush_on_error() or discard_buffers() will be called by:
-        # - Route handlers (for successful requests and Kiro API errors)
+        # - Route handlers (for successful requests and OpenCode API errors)
         # - validation_exception_handler (for 422 validation errors)
         # - Generic exception handlers (for other errors)
         response = await call_next(request)

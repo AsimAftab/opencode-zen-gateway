@@ -431,12 +431,12 @@ class AwsEventStreamParser:
                         from opencode_zen.config import TRUNCATION_RECOVERY
                         tool_id = self.current_tool_call.get('id', 'unknown')
                         
-                        # Clear error message: this is Kiro API's fault, not ours
+                        # Clear error message: this is OpenCode API's fault, not ours
                         logger.error(
-                            f"Tool call truncated by Kiro API: "
+                            f"Tool call truncated by OpenCode API: "
                             f"tool='{tool_name}', id={tool_id}, size={truncation_info['size_bytes']} bytes, "
                             f"reason={truncation_info['reason']}. "
-                            f"This is a Kiro API limitation. "
+                            f"This is a OpenCode API limitation. "
                             f"{'Model will be notified automatically about truncation.' if TRUNCATION_RECOVERY else 'Set TRUNCATION_RECOVERY=true in .env to auto-notify model about truncation.'}"
                         )
                     else:
@@ -446,7 +446,7 @@ class AwsEventStreamParser:
                     self.current_tool_call['function']['arguments'] = "{}"
             else:
                 # Empty string - use empty object
-                # This is normal behavior for duplicate tool calls from Kiro
+                # This is normal behavior for duplicate tool calls from OpenCode
                 logger.debug(f"Tool '{tool_name}' has empty arguments string (will be deduplicated)")
                 self.current_tool_call['function']['arguments'] = "{}"
         elif isinstance(args, dict):
@@ -465,7 +465,7 @@ class AwsEventStreamParser:
         """
         Analyzes a malformed JSON string to determine if it was truncated.
         
-        This helps distinguish between upstream issues (Kiro API cutting off
+        This helps distinguish between upstream issues (OpenCode API cutting off
         large tool call arguments) and actual malformed JSON from the model.
         
         Args:

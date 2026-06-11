@@ -18,9 +18,9 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """
-MCP Tools Support (WebSearch via Kiro MCP API).
+MCP Tools Support (WebSearch via OpenCode MCP API).
 
-Handles server-side tools that execute on Kiro infrastructure via MCP API.
+Handles server-side tools that execute on OpenCode infrastructure via MCP API.
 This module provides:
 - MCP API calls for web_search
 - SSE response emulation in Anthropic/OpenAI formats
@@ -74,12 +74,12 @@ def generate_random_id(length: int) -> str:
 # MCP API Functions
 # ==================================================================================================
 
-async def call_kiro_mcp_api(
+async def call_opencode_zen_mcp_api(
     query: str,
     auth_manager
 ) -> Tuple[Optional[str], Optional[Dict]]:
     """
-    Call Kiro MCP API for web_search.
+    Call OpenCode MCP API for web_search.
     
     URL: {auth_manager.q_host}/mcp
     Headers: Authorization, x-amzn-codewhisperer-optout, Content-Type
@@ -87,7 +87,7 @@ async def call_kiro_mcp_api(
     
     Args:
         query: Search query
-        auth_manager: KiroAuthManager instance
+        auth_manager: OpenCodeAuthManager instance
     
     Returns:
         Tuple of (tool_use_id, results_dict) or (None, None) on error
@@ -602,7 +602,7 @@ async def handle_native_web_search(
     Args:
         request: FastAPI Request
         request_data: Validated request (AnthropicMessagesRequest or ChatCompletionRequest)
-        auth_manager: KiroAuthManager instance
+        auth_manager: OpenCodeAuthManager instance
         api_format: "anthropic" or "openai"
     
     Returns:
@@ -625,7 +625,7 @@ async def handle_native_web_search(
     logger.info(f"WebSearch query (Path A - native): {query}")
     
     # Call MCP API
-    tool_use_id, results = await call_kiro_mcp_api(query, auth_manager)
+    tool_use_id, results = await call_opencode_zen_mcp_api(query, auth_manager)
     
     if results is None:
         return JSONResponse(

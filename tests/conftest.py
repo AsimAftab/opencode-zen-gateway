@@ -83,21 +83,14 @@ def setup_test_environment(tmp_path_factory):
     creds_file.write_text(json.dumps(credentials_data, indent=2))
     
     # Patch config paths to use temporary files
-    import opencode_zen.config
-    original_creds_file = opencode_zen.config.ACCOUNTS_CONFIG_FILE
-    original_state_file = opencode_zen.config.ACCOUNTS_STATE_FILE
-    
-    opencode_zen.config.ACCOUNTS_CONFIG_FILE = str(creds_file)
-    opencode_zen.config.ACCOUNTS_STATE_FILE = str(tmp_dir / "state.json")
+    # (Account config files no longer exist, legacy code removed)
     
     print(f"✅ Test credentials: {creds_file}")
     print(f"✅ Test state: {tmp_dir / 'state.json'}")
     
     yield
     
-    # Restore original paths
-    opencode_zen.config.ACCOUNTS_CONFIG_FILE = original_creds_file
-    opencode_zen.config.ACCOUNTS_STATE_FILE = original_state_file
+    # Restore original paths (Legacy code removed)
     
     print("🧹 Test environment cleaned up")
 
@@ -496,10 +489,8 @@ def block_all_network_calls():
 
     # Patch AsyncClient in modules where it's used
     patchers = [
-        patch('opencode_zen.auth.httpx.AsyncClient', return_value=mock_async_client),
         patch('opencode_zen.http_client.httpx.AsyncClient', return_value=mock_async_client),
         patch('opencode_zen.streaming_openai.httpx.AsyncClient', return_value=mock_async_client),
-        patch('opencode_zen.account_manager.httpx.AsyncClient', return_value=mock_async_client),
     ]
     
     # Start patchers
@@ -558,54 +549,6 @@ async def async_test_client(clean_app):
         yield client
     
     print("Closing async test client...")
-
-
-# =============================================================================
-# OpenCodeAuthManager Fixtures
-# =============================================================================
-
-@pytest.fixture
-def mock_auth_manager():
-    """
-    Creates a mocked OpenCodeAuthManager for tests.
-    """
-    from opencode_zen.auth import OpenCodeAuthManager
-    
-    manager = OpenCodeAuthManager(
-        refresh_token="test_refresh_token",
-        profile_arn="arn:aws:codewhisperer:us-east-1:123456789:profile/test",
-        region="us-east-1"
-    )
-    
-    # Set valid token
-    manager._access_token = "test_access_token"
-    manager._expires_at = datetime.now(timezone.utc).replace(
-        year=2099  # Far in the future
-    )
-    
-    return manager
-
-
-@pytest.fixture
-def expired_auth_manager():
-    """
-    Creates a OpenCodeAuthManager with an expired token.
-    """
-    from opencode_zen.auth import OpenCodeAuthManager
-    
-    manager = OpenCodeAuthManager(
-        refresh_token="test_refresh_token",
-        profile_arn="arn:aws:codewhisperer:us-east-1:123456789:profile/test",
-        region="us-east-1"
-    )
-    
-    # Set expired token
-    manager._access_token = "expired_token"
-    manager._expires_at = datetime.now(timezone.utc).replace(
-        year=2020  # In the past
-    )
-    
-    return manager
 
 
 # =============================================================================
@@ -1639,8 +1582,8 @@ def mock_account():
     """
     Creates a mock Account object with all dependencies.
     """
-    from opencode_zen.account_manager import Account, AccountStats
-    from opencode_zen.auth import OpenCodeAuthManager
+#     from opencode_zen.account_manager import Account, AccountStats
+#     from opencode_zen.auth import OpenCodeAuthManager
     from opencode_zen.cache import ModelInfoCache
     from opencode_zen.model_resolver import ModelResolver
     
@@ -1687,7 +1630,7 @@ def mock_account_manager(tmp_path):
     Factory fixture that accepts credentials and state data.
     """
     async def _create_manager(credentials_data=None, state_data=None):
-        from opencode_zen.account_manager import AccountManager
+#         from opencode_zen.account_manager import AccountManager
         
         # Create temporary files
         creds_file = tmp_path / "credentials.json"
@@ -1852,3 +1795,23 @@ def temp_account_credentials_files(tmp_path):
     files["account3"] = str(account3)
     
     return files
+
+# =============================================================================
+# Mock Auth Manager Fixtures
+# =============================================================================
+import pytest
+from unittest.mock import AsyncMock
+
+@pytest.fixture
+def mock_auth_manager():
+    manager = AsyncMock()
+    manager.q_host = "https://api.opencode.com"
+    manager.get_access_token.return_value = "test_token"
+    return manager
+
+@pytest.fixture
+def expired_auth_manager():
+    manager = AsyncMock()
+    manager.q_host = "https://api.opencode.com"
+    manager.get_access_token.return_value = "expired_token"
+    return manager
