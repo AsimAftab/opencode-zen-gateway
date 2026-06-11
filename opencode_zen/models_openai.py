@@ -2,7 +2,7 @@
 
 # OpenCode Zen Gateway
 # https://github.com/AsimAftab/opencode-zen-gateway
-# Copyright (C) 2025 AsimAftab
+# Copyright (C) 2026 AsimAftab
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by

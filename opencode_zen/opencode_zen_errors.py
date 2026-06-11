@@ -2,7 +2,7 @@
 
 # OpenCode Zen Gateway
 # https://github.com/AsimAftab/opencode-zen-gateway
-# Copyright (C) 2025 AsimAftab
+# Copyright (C) 2026 AsimAftab
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -24,8 +24,8 @@ This module provides a centralized system for enhancing cryptic Kiro API errors
 with clear, actionable, user-friendly messages.
 
 Architecture:
-- KiroErrorReason: Enum of known error reasons from Kiro API
-- KiroErrorInfo: Structured information about an enhanced error
+- OpenCodeErrorReason: Enum of known error reasons from Kiro API
+- OpenCodeErrorInfo: Structured information about an enhanced error
 - enhance_kiro_error(): Analyzes error JSON and returns enhanced message
 
 Example:
@@ -43,7 +43,7 @@ from loguru import logger
 
 
 @dataclass
-class KiroErrorInfo:
+class OpenCodeErrorInfo:
     """
     Structured information about a Kiro API error.
     
@@ -60,7 +60,7 @@ class KiroErrorInfo:
     original_message: str
 
 
-def enhance_kiro_error(error_json: Dict[str, Any]) -> KiroErrorInfo:
+def enhance_kiro_error(error_json: Dict[str, Any]) -> OpenCodeErrorInfo:
     """
     Enhances Kiro API error with user-friendly message.
     
@@ -74,7 +74,7 @@ def enhance_kiro_error(error_json: Dict[str, Any]) -> KiroErrorInfo:
                    The "reason" field is optional.
     
     Returns:
-        KiroErrorInfo with enhanced message and original details
+        OpenCodeErrorInfo with enhanced message and original details
     
     Example:
         >>> error_json = {"message": "Input is too long.", "reason": "CONTENT_LENGTH_EXCEEDS_THRESHOLD"}
@@ -134,7 +134,7 @@ def enhance_kiro_error(error_json: Dict[str, Any]) -> KiroErrorInfo:
         else:
             user_message = original_message
     
-    return KiroErrorInfo(
+    return OpenCodeErrorInfo(
         reason=reason,
         user_message=user_message,
         original_message=original_message
