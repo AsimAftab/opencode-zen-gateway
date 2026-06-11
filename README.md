@@ -30,6 +30,29 @@ Made with ❤️ by [@AsimAftab](https://github.com/AsimAftab)
 
 ---
 
+## 🤖 Available Free Models
+
+The gateway dynamically fetches the complete list of available models directly from the OpenCode API. Currently, OpenCode offers several high-tier models completely for free (you can generally identify them by the `-free` suffix).
+
+Some of the currently available **free models** include:
+- `deepseek-v4-flash-free` — DeepSeek v4 Flash Free OpenCode Zen
+- `nemotron-3-ultra-free` — Nemotron 3 Ultra Free
+- `mimo-v2.5-free` — Mimo v2.5 Free
+- `north-mini-code-free` — North Mini Code Free
+- `big-pickle` — Big Pickle (Free Tier)
+- `qwen3.6-plus-free` — Qwen 3.6 Plus Free
+- `minimax-m3-free` — Minimax M3 Free
+
+### How to find and use them
+Because the gateway natively proxies the `/v1/models` endpoint, Claude Code will automatically fetch the live list of all available models from OpenCode.
+
+You can simply start Claude Code and use its interactive model selector to see all the latest free models, or launch Claude Code directly with your desired free model:
+```bash
+claude -m deepseek-v4-flash-free
+```
+
+---
+
 ## 🚀 Quick Start
 
 ### Prerequisites
