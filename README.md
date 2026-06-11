@@ -40,8 +40,6 @@ Some of the currently available **free models** include:
 - `mimo-v2.5-free` — Mimo v2.5 Free
 - `north-mini-code-free` — North Mini Code Free
 - `big-pickle` — Big Pickle (Free Tier)
-- `qwen3.6-plus-free` — Qwen 3.6 Plus Free
-- `minimax-m3-free` — Minimax M3 Free
 
 ### How to find and use them
 Because the gateway natively proxies the `/v1/models` endpoint, Claude Code will automatically fetch the live list of all available models from OpenCode.
