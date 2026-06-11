@@ -1,6 +1,6 @@
 # Contributor License Agreement (CLA)
 
-**Kiro Gateway**
+**OpenCode Zen Gateway**
 
 Version 1.0 — Effective Date: December 2025
 
@@ -8,7 +8,7 @@ Version 1.0 — Effective Date: December 2025
 
 ## Introduction
 
-Thank you for your interest in contributing to **Kiro Gateway** (the "Project"), maintained by **AsimAftab** (the "Maintainer"). This Contributor License Agreement ("Agreement") documents the rights granted by contributors to the Maintainer.
+Thank you for your interest in contributing to **OpenCode Zen Gateway** (the "Project"), maintained by **AsimAftab** (the "Maintainer"). This Contributor License Agreement ("Agreement") documents the rights granted by contributors to the Maintainer.
 
 By submitting a Contribution to this Project, you accept and agree to the following terms and conditions for your present and future Contributions.
 
@@ -109,7 +109,7 @@ If you have questions about this CLA, please open an issue in the repository or 
 
 **Maintainer:** AsimAftab
 **GitHub:** [@AsimAftab](https://github.com/AsimAftab)
-**Project:** [Kiro Gateway](https://github.com/AsimAftab/kiro-gateway)
+**Project:** [OpenCode Zen Gateway](https://github.com/AsimAftab/opencode-zen-gateway)
 
 ---
 

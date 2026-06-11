@@ -18,7 +18,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """
-OpenCode Zen Gateway - OpenAI-compatible interface for Kiro API.
+OpenCode Zen Gateway - OpenAI-compatible interface for OpenCode API.
 
 Application entry point. Creates FastAPI app and connects routes.
 

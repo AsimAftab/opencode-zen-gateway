@@ -107,13 +107,13 @@ class ModelInfoCache:
         """
         Add a hidden model to the cache.
         
-        Hidden models are not returned by Kiro /ListAvailableModels API
+        Hidden models are not returned by OpenCode /ListAvailableModels API
         but are still functional. They are added to the cache so they
         appear in our /v1/models endpoint.
         
         Args:
             display_name: Model name to display (e.g., "claude-3.7-sonnet")
-            internal_id: Internal Kiro ID (e.g., "CLAUDE_3_7_SONNET_20250219_V1_0")
+            internal_id: Internal OpenCode ID (e.g., "CLAUDE_3_7_SONNET_20250219_V1_0")
         """
         if display_name not in self._cache:
             self._cache[display_name] = {

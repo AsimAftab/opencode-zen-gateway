@@ -99,10 +99,10 @@ SERVER_PORT: int = int(os.getenv("SERVER_PORT", str(DEFAULT_SERVER_PORT)))
 PROXY_API_KEY: str = os.getenv("PROXY_API_KEY", "my-super-secret-password-123")
 
 # ==================================================================================================
-# VPN/Proxy Settings for Kiro API Access
+# VPN/Proxy Settings for OpenCode API Access
 # ==================================================================================================
 
-# VPN/Proxy URL for accessing Kiro API through a proxy server.
+# VPN/Proxy URL for accessing OpenCode API through a proxy server.
 # Leave empty to connect directly (default).
 #
 # Use cases:
@@ -147,14 +147,14 @@ BASE_RETRY_DELAY: float = 1.0
 # Hidden Models Configuration
 # ==================================================================================================
 
-# Hidden models - not returned by Kiro /ListAvailableModels API but still functional.
+# Hidden models - not returned by OpenCode /ListAvailableModels API but still functional.
 # These ARE shown in our /v1/models endpoint!
 # Use dot format for consistency with API models.
 #
-# Format: "display_name" → "internal_kiro_id"
-# Display names use dots (e.g., "claude-3.7-sonnet") for consistency with Kiro API.
+# Format: "display_name" → "internal_opencode_id"
+# Display names use dots (e.g., "claude-3.7-sonnet") for consistency with OpenCode API.
 #
-# Why "hidden"? These models work but are not advertised by Kiro's /ListAvailableModels.
+# Why "hidden"? These models work but are not advertised by OpenCode's /ListAvailableModels.
 # We expose them to our users because they're useful.
 HIDDEN_MODELS: Dict[str, str] = {
     # Claude 3.7 Sonnet - legacy model, maps to "auto" on new runtime endpoint
@@ -171,7 +171,7 @@ HIDDEN_MODELS: Dict[str, str] = {
 #
 # Format: {"alias_name": "real_model_id"}
 # - alias_name: The name that will appear in /v1/models and can be used in requests
-# - real_model_id: The actual model ID that will be sent to Kiro API
+# - real_model_id: The actual model ID that will be sent to OpenCode API
 #
 # Use cases:
 # - Avoid conflicts with IDE-specific model names (e.g., Cursor's "auto")
@@ -180,26 +180,26 @@ HIDDEN_MODELS: Dict[str, str] = {
 #
 # Example:
 #   MODEL_ALIASES = {
-#       "auto-kiro": "auto",
+#       "auto-opencode": "auto",
 #       "my-opus": "claude-opus-4.5",
 #       "gpt-5": "claude-sonnet-4.5"
 #   }
 #
-# Default: {"auto-kiro": "auto"} to avoid Cursor IDE conflict
+# Default: {"auto-opencode": "auto"} to avoid Cursor IDE conflict
 MODEL_ALIASES: Dict[str, str] = {
-    "auto-kiro": "auto",  # Default alias to avoid Cursor's "auto" model conflict
+    "auto-opencode": "auto",  # Default alias to avoid Cursor's "auto" model conflict
 }
 
 # Models to hide from /v1/models endpoint.
 # These models still work when requested directly, but are not shown in the model list.
 # This is useful when you want to show only aliases instead of original model names.
 #
-# Use case: Hide "auto" from list to show only "auto-kiro" alias, avoiding confusion.
+# Use case: Hide "auto" from list to show only "auto-opencode" alias, avoiding confusion.
 #
 # Example:
 #   HIDDEN_FROM_LIST = ["auto", "claude-old-model"]
 #
-# Default: ["auto"] to show only "auto-kiro" alias
+# Default: ["auto"] to show only "auto-opencode" alias
 HIDDEN_FROM_LIST: List[str] = ["auto"]
 
 # ==================================================================================================
@@ -210,7 +210,7 @@ HIDDEN_FROM_LIST: List[str] = ["auto"]
 # This ensures basic functionality even with DNS/network issues.
 #
 # IMPORTANT: This list represents known models at the time of this gateway version.
-# - Some models may not be available on your Kiro plan (e.g., Opus on free tier)
+# - Some models may not be available on your OpenCode plan (e.g., Opus on free tier)
 # - New models released after this version won't appear here
 # - Update gateway regularly to get the latest model list
 FALLBACK_MODELS: List[Dict[str, str]] = [
@@ -240,10 +240,10 @@ MODEL_CACHE_TTL: int = 3600
 DEFAULT_MAX_INPUT_TOKENS: int = 200000
 
 # ==================================================================================================
-# Tool Description Handling (Kiro API Limitations)
+# Tool Description Handling (OpenCode API Limitations)
 # ==================================================================================================
 
-# Kiro API returns 400 "Improperly formed request" error when tool descriptions
+# OpenCode API returns 400 "Improperly formed request" error when tool descriptions
 # in toolSpecification.description are too long.
 #
 # Solution: Tool Documentation Reference Pattern
@@ -257,7 +257,7 @@ DEFAULT_MAX_INPUT_TOKENS: int = 200000
 
 # Maximum length of tool description in characters.
 # Descriptions longer than this limit will be moved to system prompt.
-# Set to 0 to disable (not recommended - will cause Kiro API errors).
+# Set to 0 to disable (not recommended - will cause OpenCode API errors).
 TOOL_DESCRIPTION_MAX_LENGTH: int = int(os.getenv("TOOL_DESCRIPTION_MAX_LENGTH", "10000"))
 
 # ==================================================================================================
@@ -268,7 +268,7 @@ TOOL_DESCRIPTION_MAX_LENGTH: int = int(os.getenv("TOOL_DESCRIPTION_MAX_LENGTH", 
 # When enabled, gateway will inject synthetic messages ONLY when truncation is detected:
 # - For tool calls: synthetic tool_result with error message
 # - For content: synthetic user message notifying about truncation
-# This helps the model understand and adapt to Kiro API limitations
+# This helps the model understand and adapt to OpenCode API limitations
 # Default: true (enabled)
 TRUNCATION_RECOVERY: bool = os.getenv("TRUNCATION_RECOVERY", "true").lower() in ("true", "1", "yes")
 
@@ -422,7 +422,7 @@ FAKE_REASONING_INITIAL_BUFFER_SIZE: int = int(os.getenv("FAKE_REASONING_INITIAL_
 # Payload Size Guard Settings
 # ==================================================================================================
 
-# Payload size limit in bytes (Kiro API rejects > ~615KB with cryptic 400 error)
+# Payload size limit in bytes (OpenCode API rejects > ~615KB with cryptic 400 error)
 # Default 600KB provides safety margin below the ~615KB hard limit
 KIRO_MAX_PAYLOAD_BYTES: int = int(os.getenv("KIRO_MAX_PAYLOAD_BYTES", "600000"))
 
