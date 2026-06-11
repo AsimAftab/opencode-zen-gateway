@@ -1,4 +1,4 @@
-# Kiro Gateway - Docker Image
+# OpenCode Zen Gateway - Docker Image
 # Optimized single-stage build
 
 FROM python:3.10-slim
@@ -10,28 +10,24 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Create non-root user for security
-RUN groupadd -r kiro && useradd -r -g kiro kiro
+RUN groupadd -r opencode && useradd -r -g opencode opencode
 
-# Set working directory and give ownership to kiro user
+# Set working directory and give ownership to opencode user
 WORKDIR /app
-RUN chown kiro:kiro /app
+RUN chown opencode:opencode /app
 
 # Install dependencies first (better layer caching)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY --chown=kiro:kiro . .
-
-# Remove runtime files that should not be in image
-# (in case they were copied from build context or cache)
-RUN rm -f credentials.json state.json
+COPY --chown=opencode:opencode . .
 
 # Create directory for debug logs with proper permissions
-RUN mkdir -p debug_logs && chown -R kiro:kiro debug_logs
+RUN mkdir -p debug_logs && chown -R opencode:opencode debug_logs
 
 # Switch to non-root user
-USER kiro
+USER opencode
 
 # Expose port
 EXPOSE 8000

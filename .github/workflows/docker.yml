@@ -38,7 +38,7 @@ jobs:
         if: success()
         run: |
           pip install pytest-cov
-          pytest --cov=kiro --cov-report=xml --cov-report=term
+          pytest --cov=opencode_zen --cov-report=xml --cov-report=term
       
       - name: Upload coverage to artifacts
         if: success()
@@ -95,14 +95,14 @@ jobs:
           context: .
           push: false
           load: true
-          tags: kiro-gateway:test
+          tags: opencode-zen-gateway:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: kiro-gateway:test
+          image-ref: opencode-zen-gateway:test
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -120,7 +120,7 @@ jobs:
           echo "=== Testing Docker image structure ==="
           
           # Test 1: File structure and permissions (verifies our chown fix)
-          docker run --rm kiro-gateway:test sh -c "
+          docker run --rm opencode-zen-gateway:test sh -c "
             test -f /app/main.py && \
             test -d /app/kiro && \
             test -w /app && \
@@ -129,7 +129,7 @@ jobs:
           "
           
           # Test 2: Python imports (verifies all dependencies installed)
-          docker run --rm kiro-gateway:test python -c "
+          docker run --rm opencode-zen-gateway:test python -c "
           import kiro
           import kiro.auth
           import kiro.account_manager
@@ -144,7 +144,7 @@ jobs:
           "
           
           # Test 3: CLI works (verifies entry point)
-          docker run --rm kiro-gateway:test python main.py --version
+          docker run --rm opencode-zen-gateway:test python main.py --version
           
           echo ""
           echo "========================================="

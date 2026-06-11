@@ -1,11 +1,11 @@
 version: '3.8'
 
 services:
-  kiro-gateway:
+  opencode-zen-gateway:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: kiro-gateway
+    container_name: opencode-zen-gateway
     ports:
       - "8000:8000"
     environment:
@@ -13,44 +13,19 @@ services:
       - SERVER_HOST=0.0.0.0
       - SERVER_PORT=8000
       
-      # Required: Set your proxy API key
-      # You can also use .env file (see env_file below)
+      # Required API Keys
       - PROXY_API_KEY=${PROXY_API_KEY:-my-super-secret-password-123}
-      
-      # Authentication (choose one method)
-      # Option 1: Refresh token
-      - REFRESH_TOKEN=${REFRESH_TOKEN:-}
-      
-      # Option 2: Profile ARN (optional, for Kiro IDE)
-      - PROFILE_ARN=${PROFILE_ARN:-}
-      
-      # Option 3: Credentials file path (mounted as volume below)
-      - KIRO_CREDS_FILE=${KIRO_CREDS_FILE:-}
-      
-      # Option 4: kiro-cli SQLite database (mounted as volume below)
-      - KIRO_CLI_DB_FILE=${KIRO_CLI_DB_FILE:-}
+      - OPENCODE_API_KEY=${OPENCODE_API_KEY:-}
       
       # Optional settings
-      - KIRO_REGION=${KIRO_REGION:-us-east-1}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - DEBUG_MODE=${DEBUG_MODE:-off}
-      
-      # VPN/Proxy settings (for restricted networks)
-      - VPN_PROXY_URL=${VPN_PROXY_URL:-}
     
     # Alternative: Load all variables from .env file
     env_file:
       - .env
     
     volumes:
-      # Mount credentials file (if using KIRO_CREDS_FILE)
-      # Uncomment and adjust path as needed:
-      # - ~/.aws/sso/cache:/home/kiro/.aws/sso/cache:ro
-      
-      # Mount kiro-cli database (if using KIRO_CLI_DB_FILE)
-      # Uncomment and adjust path as needed:
-      # - ~/.local/share/kiro-cli:/home/kiro/.local/share/kiro-cli  # Linux/macOS
-      
       # Mount debug logs directory (optional, for debugging)
       - ./debug_logs:/app/debug_logs
     
@@ -64,17 +39,15 @@ services:
       retries: 3
       start_period: 5s
     
-    # Resource limits (recommended for production)
-    # Adjust based on your workload and available resources
     deploy:
       resources:
         limits:
-          cpus: '2'        # Maximum CPU cores (streaming can be CPU-intensive)
-          memory: 1G       # Maximum memory (sufficient for FastAPI + streaming)
+          cpus: '2'        # Maximum CPU cores
+          memory: 1G       # Maximum memory
         reservations:
           cpus: '0.5'      # Minimum guaranteed CPU
           memory: 256M     # Minimum guaranteed memory
 
 networks:
   default:
-    name: kiro-gateway-network
+    name: opencode-zen-gateway-network
