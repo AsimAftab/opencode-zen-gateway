@@ -65,10 +65,8 @@ claude -m deepseek-v4-flash-free
 git clone https://github.com/AsimAftab/opencode-zen-gateway.git
 cd opencode-zen-gateway
 
-# Install dependencies (uv recommended for speed)
-uv pip install -r requirements.txt
-# OR
-pip install -r requirements.txt
+# Install dependencies using uv
+uv sync
 
 # Configure
 cp .env.example .env
@@ -89,7 +87,7 @@ PROXY_API_KEY="my-super-secret-password-123"
 ### Start the Server
 
 ```bash
-python main.py
+uv run python main.py
 ```
 
 The server will be available at `http://localhost:8000`

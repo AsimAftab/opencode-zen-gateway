@@ -31,17 +31,16 @@ jobs:
       
       - name: Install dependencies
         run: |
-          uv pip install --system -r requirements.txt
+          uv sync --all-extras --dev
       
       - name: Run tests with pytest
         run: |
-          pytest -v --tb=short
+          uv run pytest -v --tb=short
       
       - name: Generate coverage report
         if: success()
         run: |
-          uv pip install --system pytest-cov
-          pytest --cov=opencode_zen --cov-report=xml --cov-report=term
+          uv run pytest --cov=opencode_zen --cov-report=xml --cov-report=term
       
       - name: Upload coverage to artifacts
         if: success()
