@@ -24,6 +24,9 @@ RUN uv sync --frozen --no-dev
 # Copy application code
 COPY --chown=opencode:opencode . .
 
+# Place the virtual environment in the PATH
+ENV PATH="/app/.venv/bin:$PATH"
+
 # Create directory for debug logs with proper permissions
 RUN mkdir -p debug_logs && chown -R opencode:opencode debug_logs
 
@@ -36,7 +39,7 @@ EXPOSE 8000
 # Health check
 # Using httpx (our main HTTP library) instead of requests
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD uv run python -c "import httpx; httpx.get('http://localhost:8000/health', timeout=5)"
+    CMD python -c "import httpx; httpx.get('http://localhost:8000/health', timeout=5)"
 
 # Run the application
-CMD ["uv", "run", "python", "main.py"]
+CMD ["python", "main.py"]
