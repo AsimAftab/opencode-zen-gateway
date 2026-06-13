@@ -134,11 +134,10 @@ jobs:
           # Test 2: Python imports (verifies all dependencies installed)
           docker run --rm opencode-zen-gateway:test python -c "
           import opencode_zen
-          import opencode_zen.auth
-          import opencode_zen.account_manager
           import opencode_zen.config
           import opencode_zen.routes_openai
           import opencode_zen.routes_anthropic
+          import opencode_zen.http_client
           import fastapi
           import httpx
           import loguru
