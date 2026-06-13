@@ -18,7 +18,8 @@ RUN chown opencode:opencode /app
 
 # Install dependencies first (better layer caching)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN uv pip install --system --no-cache -r requirements.txt
 
 # Copy application code
 COPY --chown=opencode:opencode . .

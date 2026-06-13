@@ -19,16 +19,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          cache: 'pip'
       
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          uv pip install --system -r requirements.txt
       
       - name: Run tests with pytest
         run: |
@@ -37,7 +40,7 @@ jobs:
       - name: Generate coverage report
         if: success()
         run: |
-          pip install pytest-cov
+          uv pip install --system pytest-cov
           pytest --cov=opencode_zen --cov-report=xml --cov-report=term
       
       - name: Upload coverage to artifacts
@@ -109,7 +112,7 @@ jobs:
           exit-code: '0'  # Don't fail build, just report
       
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()  # Upload even if previous step fails
         with:
           sarif_file: 'trivy-results.sarif'
@@ -122,7 +125,7 @@ jobs:
           # Test 1: File structure and permissions (verifies our chown fix)
           docker run --rm opencode-zen-gateway:test sh -c "
             test -f /app/main.py && \
-            test -d /app/kiro && \
+            test -d /app/opencode_zen && \
             test -w /app && \
             touch /app/test.tmp && rm /app/test.tmp && \
             echo '✓ File structure and write permissions OK'
@@ -130,12 +133,12 @@ jobs:
           
           # Test 2: Python imports (verifies all dependencies installed)
           docker run --rm opencode-zen-gateway:test python -c "
-          import kiro
-          import kiro.auth
-          import kiro.account_manager
-          import kiro.config
-          import kiro.routes_openai
-          import kiro.routes_anthropic
+          import opencode_zen
+          import opencode_zen.auth
+          import opencode_zen.account_manager
+          import opencode_zen.config
+          import opencode_zen.routes_openai
+          import opencode_zen.routes_anthropic
           import fastapi
           import httpx
           import loguru

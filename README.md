@@ -65,7 +65,9 @@ claude -m deepseek-v4-flash-free
 git clone https://github.com/AsimAftab/opencode-zen-gateway.git
 cd opencode-zen-gateway
 
-# Install dependencies
+# Install dependencies (uv recommended for speed)
+uv pip install -r requirements.txt
+# OR
 pip install -r requirements.txt
 
 # Configure
