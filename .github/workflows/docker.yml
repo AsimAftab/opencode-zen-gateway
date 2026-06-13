@@ -131,7 +131,7 @@ jobs:
           "
           
           # Test 2: Python imports (verifies all dependencies installed)
-          docker run --rm opencode-zen-gateway:test python -c "
+          docker run --rm opencode-zen-gateway:test uv run python -c "
           import opencode_zen
           import opencode_zen.config
           import opencode_zen.routes_openai
@@ -145,7 +145,7 @@ jobs:
           "
           
           # Test 3: CLI works (verifies entry point)
-          docker run --rm opencode-zen-gateway:test python main.py --version
+          docker run --rm opencode-zen-gateway:test uv run python main.py --version
           
           echo ""
           echo "========================================="
