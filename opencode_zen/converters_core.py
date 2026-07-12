@@ -1402,6 +1402,40 @@ def build_opencode_zen_history(messages: List[UnifiedMessage], model_id: str) ->
 # Main Payload Building
 # ==================================================================================================
 
+def _normalize_tool_call_for_openai(tc: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Normalizes a unified tool call into OpenAI wire format.
+
+    Adapters emit tool calls in nested OpenAI shape
+    ({"id", "type", "function": {"name", "arguments"}}), but legacy callers
+    may still pass the flat shape ({"id", "name", "arguments"}). Both are
+    accepted; arguments are always serialized to a JSON string.
+
+    Args:
+        tc: Tool call dict in nested or flat shape
+
+    Returns:
+        Tool call dict in OpenAI wire format with string arguments
+    """
+    function = tc.get("function") if isinstance(tc.get("function"), dict) else {}
+    name = function.get("name") or tc.get("name", "")
+    arguments = function.get("arguments") if function else tc.get("arguments", "{}")
+
+    if isinstance(arguments, dict):
+        arguments = json.dumps(arguments, ensure_ascii=False)
+    elif not isinstance(arguments, str):
+        arguments = "{}" if arguments is None else str(arguments)
+
+    return {
+        "id": tc.get("id", "call_1"),
+        "type": "function",
+        "function": {
+            "name": name,
+            "arguments": arguments or "{}"
+        }
+    }
+
+
 def build_opencode_payload(
     messages: List[UnifiedMessage],
     system_prompt: str,
@@ -1444,19 +1478,13 @@ def build_opencode_payload(
             
         if msg.tool_calls:
             msg_dict["tool_calls"] = [
-                {
-                    "id": tc.get("id", "call_1"),
-                    "type": "function",
-                    "function": {
-                        "name": tc.get("name", ""),
-                        "arguments": json.dumps(tc.get("arguments", {})) if isinstance(tc.get("arguments"), dict) else tc.get("arguments", "{}")
-                    }
-                }
-                for tc in msg.tool_calls
+                _normalize_tool_call_for_openai(tc) for tc in msg.tool_calls
             ]
-            
+
         if msg.tool_results:
-            # For each tool result, OpenAI expects a separate 'tool' role message
+            # OpenAI expects tool results as separate 'tool' role messages that
+            # follow the assistant message carrying the tool_calls, so they are
+            # appended BEFORE this user message's own content.
             for tr in msg.tool_results:
                 openai_messages.append({
                     "role": "tool",
@@ -1466,7 +1494,7 @@ def build_opencode_payload(
             # Skip appending the original user message since we broke it down
             if msg.role == "user" and not msg_dict.get("content"):
                 continue
-                
+
         openai_messages.append(msg_dict)
         
     payload = {

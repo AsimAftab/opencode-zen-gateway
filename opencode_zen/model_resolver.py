@@ -84,44 +84,51 @@ class ModelResolution:
     is_verified: bool
 
 
+# Claude model families recognized by the normalization patterns.
+_CLAUDE_FAMILIES = r'(?:haiku|sonnet|opus|fable|mythos)'
+
+
 def normalize_model_name(name: str) -> str:
     """
-    Normalize client model name to OpenCode format.
-    
+    Normalize client model name to OpenCode Zen format.
+
+    OpenCode Zen uses DASH-form Claude IDs (verified against the live
+    /v1/models endpoint): claude-sonnet-4-5, claude-haiku-4-5, claude-opus-4-1.
+    Clients (especially Claude Code) send date-stamped or dotted variants,
+    which are canonicalized here.
+
     Transformations applied:
-    1. claude-haiku-4-5 → claude-haiku-4.5 (dash to dot for minor version)
-    2. claude-haiku-4-5-20251001 → claude-haiku-4.5 (strip date suffix)
-    3. claude-haiku-4-5-latest → claude-haiku-4.5 (strip 'latest' suffix)
+    1. claude-haiku-4-5-20251001 → claude-haiku-4-5 (strip date suffix)
+    2. claude-haiku-4-5-latest → claude-haiku-4-5 (strip 'latest' suffix)
+    3. claude-haiku-4.5 → claude-haiku-4-5 (dot to dash for minor version)
     4. claude-sonnet-4-20250514 → claude-sonnet-4 (strip date, no minor)
-    5. claude-3-7-sonnet → claude-3.7-sonnet (legacy format normalization)
-    6. claude-3-7-sonnet-20250219 → claude-3.7-sonnet (legacy + strip date)
-    7. claude-4.5-opus-high → claude-opus-4.5 (inverted format with suffix)
-    
+    5. claude-3-7-sonnet / claude-3.7-sonnet → claude-sonnet-3-7 (legacy inverted order)
+    6. claude-4.5-opus-high → claude-opus-4-5 (inverted format with effort suffix)
+    7. claude-sonnet-4-5[1m] → claude-sonnet-4-5 (strip context-window annotation)
+
     Args:
         name: External model name from client
-    
+
     Returns:
-        Normalized model name in OpenCode format
-    
+        Normalized model name in OpenCode Zen format
+
     Examples:
         >>> normalize_model_name("claude-haiku-4-5-20251001")
-        'claude-haiku-4.5'
+        'claude-haiku-4-5'
         >>> normalize_model_name("claude-sonnet-4-5")
-        'claude-sonnet-4.5'
-        >>> normalize_model_name("claude-opus-4-5")
-        'claude-opus-4.5'
+        'claude-sonnet-4-5'
+        >>> normalize_model_name("claude-opus-4.5")
+        'claude-opus-4-5'
         >>> normalize_model_name("claude-sonnet-4")
         'claude-sonnet-4'
         >>> normalize_model_name("claude-sonnet-4-20250514")
         'claude-sonnet-4'
         >>> normalize_model_name("claude-3-7-sonnet")
-        'claude-3.7-sonnet'
+        'claude-sonnet-3-7'
         >>> normalize_model_name("claude-3-7-sonnet-20250219")
-        'claude-3.7-sonnet'
+        'claude-sonnet-3-7'
         >>> normalize_model_name("claude-4.5-opus-high")
-        'claude-opus-4.5'
-        >>> normalize_model_name("claude-4.5-sonnet-low")
-        'claude-sonnet-4.5'
+        'claude-opus-4-5'
         >>> normalize_model_name("auto")
         'auto'
     """
@@ -133,58 +140,35 @@ def normalize_model_name(name: str) -> str:
 
     # Lowercase for consistent matching
     name_lower = name.lower()
-    
-    # Pattern 1: Standard format - claude-{family}-{major}-{minor}(-{suffix})?
-    # Matches: claude-haiku-4-5, claude-haiku-4-5-20251001, claude-haiku-4-5-latest
-    # Groups: (claude-haiku-4), (5), optional suffix
-    # IMPORTANT: Minor version is 1-2 digits only! 8-digit dates should NOT match here.
-    standard_pattern = r'^(claude-(?:haiku|sonnet|opus)-\d+)-(\d{1,2})(?:-(?:\d{8}|latest|\d+))?$'
+
+    # Pattern 1: Standard format - claude-{family}-{major}(-{minor})?(-{suffix})?
+    # Matches: claude-haiku-4-5, claude-haiku-4-5-20251001, claude-haiku-4-5-latest,
+    #          claude-sonnet-4, claude-sonnet-4-20250514, claude-sonnet-5
+    # IMPORTANT: Minor version is 1-2 digits only! 8-digit dates must NOT match as minor.
+    standard_pattern = rf'^(claude-{_CLAUDE_FAMILIES}-\d+)(?:-(\d{{1,2}}))?(?:-(?:\d{{8}}|latest))?$'
     match = re.match(standard_pattern, name_lower)
     if match:
-        base = match.group(1)  # claude-haiku-4
-        minor = match.group(2)  # 5
-        return f"{base}.{minor}"  # claude-haiku-4.5
-    
-    # Pattern 2: Standard format without minor - claude-{family}-{major}(-{date})?
-    # Matches: claude-sonnet-4, claude-sonnet-4-20250514
-    # Groups: (claude-sonnet-4), optional date
-    no_minor_pattern = r'^(claude-(?:haiku|sonnet|opus)-\d+)(?:-\d{8})?$'
-    match = re.match(no_minor_pattern, name_lower)
+        base = match.group(1)   # claude-haiku-4
+        minor = match.group(2)  # 5 or None
+        return f"{base}-{minor}" if minor else base
+
+    # Pattern 2: Dotted minor version - claude-{family}-{major}.{minor}(-{date|latest})?
+    # Matches: claude-haiku-4.5, claude-haiku-4.5-20251001
+    dotted_pattern = rf'^(claude-{_CLAUDE_FAMILIES}-\d+)\.(\d+)(?:-(?:\d{{8}}|latest))?$'
+    match = re.match(dotted_pattern, name_lower)
     if match:
-        return match.group(1)  # claude-sonnet-4
-    
-    # Pattern 3: Legacy format - claude-{major}-{minor}-{family}(-{suffix})?
-    # Matches: claude-3-7-sonnet, claude-3-7-sonnet-20250219
-    # Groups: (claude), (3), (7), (sonnet), optional suffix
-    legacy_pattern = r'^(claude)-(\d+)-(\d+)-(haiku|sonnet|opus)(?:-(?:\d{8}|latest|\d+))?$'
+        return f"{match.group(1)}-{match.group(2)}"  # claude-haiku-4-5
+
+    # Pattern 3: Legacy inverted format - claude-{major}[.-]{minor}-{family}(-{suffix})?
+    # Matches: claude-3-7-sonnet, claude-3.7-sonnet-20250219, claude-4.5-opus-high
+    legacy_pattern = rf'^claude-(\d+)[.-](\d+)-({_CLAUDE_FAMILIES})(?:-.+)?$'
     match = re.match(legacy_pattern, name_lower)
     if match:
-        prefix = match.group(1)  # claude
-        major = match.group(2)   # 3
-        minor = match.group(3)   # 7
-        family = match.group(4)  # sonnet
-        return f"{prefix}-{major}.{minor}-{family}"  # claude-3.7-sonnet
-    
-    # Pattern 4: Already normalized with dot but has date suffix
-    # Matches: claude-haiku-4.5-20251001, claude-3.7-sonnet-20250219
-    dot_with_date_pattern = r'^(claude-(?:\d+\.\d+-)?(?:haiku|sonnet|opus)(?:-\d+\.\d+)?)-\d{8}$'
-    match = re.match(dot_with_date_pattern, name_lower)
-    if match:
-        return match.group(1)
-    
-    # Pattern 5: Inverted format with suffix - claude-{major}.{minor}-{family}-{suffix}
-    # Matches: claude-4.5-opus-high, claude-4.5-sonnet-low, claude-4.5-opus-high-thinking
-    # Convert to: claude-{family}-{major}.{minor}
-    # Groups: (4), (5), (opus), any suffix
-    # NOTE: This pattern REQUIRES a suffix to avoid matching already-normalized formats like claude-3.7-sonnet
-    inverted_with_suffix_pattern = r'^claude-(\d+)\.(\d+)-(haiku|sonnet|opus)-(.+)$'
-    match = re.match(inverted_with_suffix_pattern, name_lower)
-    if match:
-        major = match.group(1)   # 4
-        minor = match.group(2)   # 5
-        family = match.group(3)  # opus
-        return f"claude-{family}-{major}.{minor}"  # claude-opus-4.5
-    
+        major = match.group(1)   # 3
+        minor = match.group(2)   # 7
+        family = match.group(3)  # sonnet
+        return f"claude-{family}-{major}-{minor}"  # claude-sonnet-3-7
+
     # No transformation needed - return as-is (preserving original case for passthrough)
     return name
 
@@ -208,10 +192,8 @@ def get_model_id_for_kiro(model_name: str, hidden_models: Dict[str, str]) -> str
     
     Examples:
         >>> get_model_id_for_kiro("claude-haiku-4-5-20251001", {})
-        'claude-haiku-4.5'
-        >>> get_model_id_for_kiro("claude-3.7-sonnet", {"claude-3.7-sonnet": "CLAUDE_3_7_SONNET_20250219_V1_0"})
-        'CLAUDE_3_7_SONNET_20250219_V1_0'
-        >>> get_model_id_for_kiro("claude-3-7-sonnet", {"claude-3.7-sonnet": "CLAUDE_3_7_SONNET_20250219_V1_0"})
+        'claude-haiku-4-5'
+        >>> get_model_id_for_kiro("claude-sonnet-3-7", {"claude-sonnet-3-7": "CLAUDE_3_7_SONNET_20250219_V1_0"})
         'CLAUDE_3_7_SONNET_20250219_V1_0'
     """
     normalized = normalize_model_name(model_name)

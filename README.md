@@ -22,7 +22,8 @@ Made with ❤️ by [@AsimAftab](https://github.com/AsimAftab)
 | 🔌 **OpenAI-compatible API** | Works with any OpenAI-compatible tool |
 | 🔌 **Anthropic-compatible API** | Native `/v1/messages` endpoint |
 | 🧠 **Extended Thinking** | Fake reasoning injection to mimic thinking tags |
-| 🔍 **Web Search** | Auto-injected web search capabilities |
+| 🔍 **Web Search** | Opt-in web_search tool injection (`WEB_SEARCH_ENABLED=true`) |
+| 🔢 **Token Counting** | Local `/v1/messages/count_tokens` endpoint (used by Claude Code) |
 | 🛠️ **Tool Calling** | Supports full function calling and MCP tools |
 | 💬 **Full message history** | Passes complete conversation context |
 | 📡 **Streaming** | Full SSE streaming support |

@@ -16,23 +16,50 @@ from loguru import logger
 from opencode_zen.config import PROXY_API_KEY, OPENCODE_BASE_URL, WEB_SEARCH_ENABLED
 from opencode_zen.models_anthropic import (
     AnthropicMessagesRequest,
+    AnthropicCountTokensRequest,
     AnthropicMessage,
 )
-from opencode_zen.cache import ModelInfoCache
 from opencode_zen.converters_anthropic import anthropic_to_opencode
 from opencode_zen.streaming_anthropic import (
     stream_openai_to_anthropic,
     stream_with_first_token_retry_anthropic,
     collect_anthropic_response,
+    format_sse_event,
 )
 from opencode_zen.http_client import OpenCodeHttpClient
+from opencode_zen.tokenizer import estimate_request_tokens
 from opencode_zen.utils import generate_conversation_id
-from opencode_zen.mcp_tools import handle_native_web_search
 
 try:
     from opencode_zen.debug_logger import debug_logger
 except ImportError:
     debug_logger = None
+
+
+def _extract_upstream_error_anthropic(response: httpx.Response) -> dict:
+    """
+    Extracts an Anthropic-shaped error body from an upstream error response.
+
+    OpenCode Zen already returns Anthropic-shaped errors
+    ({"type": "error", "error": {"type": ..., "message": ...}}) — those are
+    passed through verbatim so clients (e.g. Claude Code) display the real
+    upstream message. OpenAI-shaped or plain-text errors are wrapped.
+    """
+    try:
+        error_data = response.json()
+    except ValueError:
+        error_data = None
+
+    if isinstance(error_data, dict):
+        inner = error_data.get("error")
+        if isinstance(inner, dict) and inner.get("message"):
+            return {
+                "type": "error",
+                "error": {"type": inner.get("type", "api_error"), "message": inner["message"]}
+            }
+
+    message = response.text or f"Upstream error (HTTP {response.status_code})"
+    return {"type": "error", "error": {"type": "api_error", "message": message}}
 
 anthropic_api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
 auth_header = APIKeyHeader(name="Authorization", auto_error=False)
@@ -138,7 +165,27 @@ async def messages(
     
     request_data.messages = modified_messages
 
-    # 2. Web Search
+    # 2. Tool list hygiene
+    # Server-side tools (e.g. Claude Code's web_search_20250305) have no
+    # input_schema and cannot be executed by the upstream — strip them instead
+    # of failing or diverting the request, so the rest of the request works.
+    if request_data.tools:
+        executable_tools = []
+        for tool in request_data.tools:
+            tool_type = getattr(tool, "type", None)
+            input_schema = getattr(tool, "input_schema", None)
+            if tool_type and input_schema is None:
+                logger.warning(
+                    f"Stripping unsupported server-side tool '{getattr(tool, 'name', tool_type)}' "
+                    f"(type={tool_type}) — upstream has no server-side tool support"
+                )
+                continue
+            executable_tools.append(tool)
+        request_data.tools = executable_tools or None
+
+    # 3. Web Search emulation (opt-in via WEB_SEARCH_ENABLED)
+    # Offers a web_search function tool; the model's tool call is returned to
+    # the client like any other function call — the request is never diverted.
     if WEB_SEARCH_ENABLED:
         if request_data.tools is None:
             request_data.tools = []
@@ -156,13 +203,7 @@ async def messages(
             )
             request_data.tools.append(web_search_tool)
 
-    if request_data.tools:
-        for tool in request_data.tools:
-            tool_type = getattr(tool, "type", None)
-            if tool_type and tool_type.startswith("web_search"):
-                return await handle_native_web_search(request, request_data, None, api_format="anthropic")
-
-    # 3. Build Payload
+    # 4. Build Payload
     conversation_id = generate_conversation_id()
     try:
         # anthropic_to_opencode now returns OpenAI payload
@@ -191,11 +232,10 @@ async def messages(
         if response.status_code == 200:
             if request_data.stream:
                 async def stream_wrapper():
-                    streaming_error = None
                     try:
                         async def make_retry_request():
                             return await http_client.request_with_retry("POST", url, opencode_payload, stream=True)
-                        
+
                         async for chunk in stream_with_first_token_retry_anthropic(
                             make_request=make_retry_request,
                             model=request_data.model,
@@ -208,8 +248,13 @@ async def messages(
                         ):
                             yield chunk
                     except Exception as e:
-                        streaming_error = e
+                        # Surface mid-stream failures as an Anthropic error
+                        # event instead of silently truncating the stream.
                         logger.error(f"Streaming error: {e}")
+                        yield format_sse_event("error", {
+                            "type": "error",
+                            "error": {"type": "api_error", "message": f"Stream interrupted: {str(e)}"}
+                        })
                     finally:
                         if http_client._owns_client:
                             await http_client.close()
@@ -227,19 +272,18 @@ async def messages(
                         await http_client.close()
         else:
             await response.aread()
-            try:
-                error_data = response.json()
-            except ValueError:
-                error_data = {"error": {"message": response.text}}
-            
             if http_client._owns_client:
                 await http_client.close()
-                
+
             return JSONResponse(
                 status_code=response.status_code,
-                content={"type": "error", "error": {"type": "api_error", "message": f"OpenCode API error: {error_data}"}}
+                content=_extract_upstream_error_anthropic(response)
             )
-            
+
+    except HTTPException:
+        if http_client._owns_client:
+            await http_client.close()
+        raise
     except Exception as e:
         logger.error(f"Request failed: {e}")
         if http_client._owns_client:
@@ -248,3 +292,25 @@ async def messages(
             status_code=502,
             content={"type": "error", "error": {"type": "api_error", "message": f"Connection failed: {str(e)}"}}
         )
+
+
+@router.post("/v1/messages/count_tokens", dependencies=[Depends(verify_anthropic_api_key)])
+async def count_tokens_endpoint(request_data: AnthropicCountTokensRequest):
+    """
+    Anthropic Count Tokens API (/v1/messages/count_tokens).
+
+    Claude Code calls this endpoint for context management. The upstream has
+    no token counting API, so tokens are estimated locally with the tiktoken
+    approximation from tokenizer.py.
+    """
+    logger.info(f"Request to /v1/messages/count_tokens (model={request_data.model})")
+
+    messages = [msg.model_dump() for msg in request_data.messages]
+    tools = [tool.model_dump() for tool in request_data.tools] if request_data.tools else None
+    if isinstance(request_data.system, list):
+        system = [b.model_dump() if hasattr(b, "model_dump") else b for b in request_data.system]
+    else:
+        system = request_data.system
+
+    stats = estimate_request_tokens(messages=messages, tools=tools, system_prompt=system)
+    return JSONResponse(content={"input_tokens": stats["total_tokens"]})

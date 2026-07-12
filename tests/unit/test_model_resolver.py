@@ -39,10 +39,10 @@ def mock_model_cache():
     # Directly populate cache (without async update)
     cache._cache = {
         "auto": {"modelId": "auto", "modelName": "Auto"},
-        "claude-sonnet-4.5": {"modelId": "claude-sonnet-4.5", "modelName": "Claude Sonnet 4.5"},
+        "claude-sonnet-4-5": {"modelId": "claude-sonnet-4-5", "modelName": "Claude Sonnet 4.5"},
         "claude-sonnet-4": {"modelId": "claude-sonnet-4", "modelName": "Claude Sonnet 4"},
-        "claude-haiku-4.5": {"modelId": "claude-haiku-4.5", "modelName": "Claude Haiku 4.5"},
-        "claude-opus-4.5": {"modelId": "claude-opus-4.5", "modelName": "Claude Opus 4.5"},
+        "claude-haiku-4-5": {"modelId": "claude-haiku-4-5", "modelName": "Claude Haiku 4.5"},
+        "claude-opus-4-5": {"modelId": "claude-opus-4-5", "modelName": "Claude Opus 4.5"},
     }
     return cache
 
@@ -56,9 +56,9 @@ def empty_model_cache():
 
 @pytest.fixture
 def hidden_models():
-    """Hidden models for tests."""
+    """Hidden models for tests (keyed by NORMALIZED name)."""
     return {
-        "claude-3.7-sonnet": "CLAUDE_3_7_SONNET_20250219_V1_0",
+        "claude-sonnet-3-7": "CLAUDE_3_7_SONNET_20250219_V1_0",
     }
 
 
@@ -84,95 +84,95 @@ class TestNormalizeModelName:
     """
     Tests for normalize_model_name() function.
     
-    Checks conversion of client formats to OpenCode format:
-    - Dashes → dots for minor versions
+    Checks conversion of client formats to OpenCode Zen format:
+    - Dots → dashes for minor versions
     - Removal of date suffix (20251001)
     - Removal of 'latest' suffix
-    - Legacy format (claude-3-7-sonnet)
+    - Legacy inverted format (claude-3-7-sonnet → claude-sonnet-3-7)
     """
-    
-    # === Standard format with minor version ===
-    
-    def test_normalizes_haiku_dash_to_dot(self):
+
+    # === Standard format with minor version (already canonical) ===
+
+    def test_keeps_haiku_dash_form(self):
         """
-        What it does: claude-haiku-4-5 → claude-haiku-4.5
-        Goal: Check dash-to-dot conversion for Haiku.
+        What it does: claude-haiku-4-5 → claude-haiku-4-5
+        Goal: Check that canonical dash form is unchanged for Haiku.
         """
         print("Action: Normalizing 'claude-haiku-4-5'...")
         result = normalize_model_name("claude-haiku-4-5")
-        
-        print(f"Comparing result: Expected 'claude-haiku-4.5', Got '{result}'")
-        assert result == "claude-haiku-4.5"
-    
-    def test_normalizes_sonnet_dash_to_dot(self):
+
+        print(f"Comparing result: Expected 'claude-haiku-4-5', Got '{result}'")
+        assert result == "claude-haiku-4-5"
+
+    def test_keeps_sonnet_dash_form(self):
         """
-        What it does: claude-sonnet-4-5 → claude-sonnet-4.5
-        Goal: Check dash-to-dot conversion for Sonnet.
+        What it does: claude-sonnet-4-5 → claude-sonnet-4-5
+        Goal: Check that canonical dash form is unchanged for Sonnet.
         """
         print("Action: Normalizing 'claude-sonnet-4-5'...")
         result = normalize_model_name("claude-sonnet-4-5")
-        
-        print(f"Comparing result: Expected 'claude-sonnet-4.5', Got '{result}'")
-        assert result == "claude-sonnet-4.5"
-    
-    def test_normalizes_opus_dash_to_dot(self):
+
+        print(f"Comparing result: Expected 'claude-sonnet-4-5', Got '{result}'")
+        assert result == "claude-sonnet-4-5"
+
+    def test_keeps_opus_dash_form(self):
         """
-        What it does: claude-opus-4-5 → claude-opus-4.5
-        Goal: Check dash-to-dot conversion for Opus.
+        What it does: claude-opus-4-5 → claude-opus-4-5
+        Goal: Check that canonical dash form is unchanged for Opus.
         """
         print("Action: Normalizing 'claude-opus-4-5'...")
         result = normalize_model_name("claude-opus-4-5")
-        
-        print(f"Comparing result: Expected 'claude-opus-4.5', Got '{result}'")
-        assert result == "claude-opus-4.5"
+
+        print(f"Comparing result: Expected 'claude-opus-4-5', Got '{result}'")
+        assert result == "claude-opus-4-5"
     
     # === Removal of date suffix ===
     
     def test_strips_date_suffix_haiku(self):
         """
-        What it does: claude-haiku-4-5-20251001 → claude-haiku-4.5
+        What it does: claude-haiku-4-5-20251001 → claude-haiku-4-5
         Goal: Check date suffix removal for Haiku (Claude Code format).
         """
         print("Action: Normalizing 'claude-haiku-4-5-20251001'...")
         result = normalize_model_name("claude-haiku-4-5-20251001")
-        
-        print(f"Comparing result: Expected 'claude-haiku-4.5', Got '{result}'")
-        assert result == "claude-haiku-4.5"
-    
+
+        print(f"Comparing result: Expected 'claude-haiku-4-5', Got '{result}'")
+        assert result == "claude-haiku-4-5"
+
     def test_strips_date_suffix_sonnet(self):
         """
-        What it does: claude-sonnet-4-5-20250929 → claude-sonnet-4.5
+        What it does: claude-sonnet-4-5-20250929 → claude-sonnet-4-5
         Goal: Check date suffix removal for Sonnet.
         """
         print("Action: Normalizing 'claude-sonnet-4-5-20250929'...")
         result = normalize_model_name("claude-sonnet-4-5-20250929")
-        
-        print(f"Comparing result: Expected 'claude-sonnet-4.5', Got '{result}'")
-        assert result == "claude-sonnet-4.5"
-    
+
+        print(f"Comparing result: Expected 'claude-sonnet-4-5', Got '{result}'")
+        assert result == "claude-sonnet-4-5"
+
     def test_strips_date_suffix_opus(self):
         """
-        What it does: claude-opus-4-5-20251101 → claude-opus-4.5
+        What it does: claude-opus-4-5-20251101 → claude-opus-4-5
         Goal: Check date suffix removal for Opus.
         """
         print("Action: Normalizing 'claude-opus-4-5-20251101'...")
         result = normalize_model_name("claude-opus-4-5-20251101")
-        
-        print(f"Comparing result: Expected 'claude-opus-4.5', Got '{result}'")
-        assert result == "claude-opus-4.5"
-    
+
+        print(f"Comparing result: Expected 'claude-opus-4-5', Got '{result}'")
+        assert result == "claude-opus-4-5"
+
     # === Removal of 'latest' suffix ===
-    
+
     def test_strips_latest_suffix(self):
         """
-        What it does: claude-haiku-4-5-latest → claude-haiku-4.5
+        What it does: claude-haiku-4-5-latest → claude-haiku-4-5
         Goal: Check 'latest' suffix removal.
         """
         print("Action: Normalizing 'claude-haiku-4-5-latest'...")
         result = normalize_model_name("claude-haiku-4-5-latest")
-        
-        print(f"Comparing result: Expected 'claude-haiku-4.5', Got '{result}'")
-        assert result == "claude-haiku-4.5"
+
+        print(f"Comparing result: Expected 'claude-haiku-4-5', Got '{result}'")
+        assert result == "claude-haiku-4-5"
     
     # === Standard format without minor version ===
     
@@ -198,168 +198,168 @@ class TestNormalizeModelName:
         print(f"Comparing result: Expected 'claude-sonnet-4', Got '{result}'")
         assert result == "claude-sonnet-4"
     
-    # === Legacy format (claude-X-Y-family) ===
-    
+    # === Legacy inverted format (claude-X-Y-family → claude-family-X-Y) ===
+
     def test_normalizes_legacy_format(self):
         """
-        What it does: claude-3-7-sonnet → claude-3.7-sonnet
-        Goal: Check legacy format normalization.
+        What it does: claude-3-7-sonnet → claude-sonnet-3-7
+        Goal: Check legacy inverted format normalization to family-first dash form.
         """
         print("Action: Normalizing 'claude-3-7-sonnet'...")
         result = normalize_model_name("claude-3-7-sonnet")
-        
-        print(f"Comparing result: Expected 'claude-3.7-sonnet', Got '{result}'")
-        assert result == "claude-3.7-sonnet"
-    
+
+        print(f"Comparing result: Expected 'claude-sonnet-3-7', Got '{result}'")
+        assert result == "claude-sonnet-3-7"
+
     def test_normalizes_legacy_format_with_date(self):
         """
-        What it does: claude-3-7-sonnet-20250219 → claude-3.7-sonnet
-        Goal: Check legacy format normalization with date suffix.
+        What it does: claude-3-7-sonnet-20250219 → claude-sonnet-3-7
+        Goal: Check legacy inverted format normalization with date suffix.
         """
         print("Action: Normalizing 'claude-3-7-sonnet-20250219'...")
         result = normalize_model_name("claude-3-7-sonnet-20250219")
-        
-        print(f"Comparing result: Expected 'claude-3.7-sonnet', Got '{result}'")
-        assert result == "claude-3.7-sonnet"
-    
+
+        print(f"Comparing result: Expected 'claude-sonnet-3-7', Got '{result}'")
+        assert result == "claude-sonnet-3-7"
+
     def test_normalizes_legacy_haiku(self):
         """
-        What it does: claude-3-5-haiku → claude-3.5-haiku
-        Goal: Check legacy format normalization for Haiku.
+        What it does: claude-3-5-haiku → claude-haiku-3-5
+        Goal: Check legacy inverted format normalization for Haiku.
         """
         print("Action: Normalizing 'claude-3-5-haiku'...")
         result = normalize_model_name("claude-3-5-haiku")
-        
-        print(f"Comparing result: Expected 'claude-3.5-haiku', Got '{result}'")
-        assert result == "claude-3.5-haiku"
-    
+
+        print(f"Comparing result: Expected 'claude-haiku-3-5', Got '{result}'")
+        assert result == "claude-haiku-3-5"
+
     def test_normalizes_legacy_opus(self):
         """
-        What it does: claude-3-0-opus → claude-3.0-opus
-        Goal: Check legacy format normalization for Opus.
+        What it does: claude-3-0-opus → claude-opus-3-0
+        Goal: Check legacy inverted format normalization for Opus.
         """
         print("Action: Normalizing 'claude-3-0-opus'...")
         result = normalize_model_name("claude-3-0-opus")
-        
-        print(f"Comparing result: Expected 'claude-3.0-opus', Got '{result}'")
-        assert result == "claude-3.0-opus"
+
+        print(f"Comparing result: Expected 'claude-opus-3-0', Got '{result}'")
+        assert result == "claude-opus-3-0"
     
     # === Inverted format with suffix (Pattern 5 - Cursor IDE) ===
     
     def test_inverted_format_with_high_suffix(self):
         """
-        What it does: claude-4.5-opus-high → claude-opus-4.5
+        What it does: claude-4.5-opus-high → claude-opus-4-5
         Goal: Check inverted format normalization with 'high' suffix (Cursor IDE).
-        
+
         Cursor IDE sends model names in inverted format with priority suffix.
         This is Pattern 5 from PR #49.
         """
         print("Action: Normalizing 'claude-4.5-opus-high'...")
         result = normalize_model_name("claude-4.5-opus-high")
-        
-        print(f"Comparing result: Expected 'claude-opus-4.5', Got '{result}'")
-        assert result == "claude-opus-4.5"
-    
+
+        print(f"Comparing result: Expected 'claude-opus-4-5', Got '{result}'")
+        assert result == "claude-opus-4-5"
+
     def test_inverted_format_with_low_suffix(self):
         """
-        What it does: claude-4.5-sonnet-low → claude-sonnet-4.5
+        What it does: claude-4.5-sonnet-low → claude-sonnet-4-5
         Goal: Check inverted format normalization with 'low' suffix (Cursor IDE).
         """
         print("Action: Normalizing 'claude-4.5-sonnet-low'...")
         result = normalize_model_name("claude-4.5-sonnet-low")
-        
-        print(f"Comparing result: Expected 'claude-sonnet-4.5', Got '{result}'")
-        assert result == "claude-sonnet-4.5"
-    
+
+        print(f"Comparing result: Expected 'claude-sonnet-4-5', Got '{result}'")
+        assert result == "claude-sonnet-4-5"
+
     def test_inverted_format_with_thinking_suffix(self):
         """
-        What it does: claude-4.5-opus-high-thinking → claude-opus-4.5
+        What it does: claude-4.5-opus-high-thinking → claude-opus-4-5
         Goal: Check inverted format with compound suffix (high-thinking).
-        
+
         The pattern strips ALL suffixes after the family name.
         """
         print("Action: Normalizing 'claude-4.5-opus-high-thinking'...")
         result = normalize_model_name("claude-4.5-opus-high-thinking")
-        
-        print(f"Comparing result: Expected 'claude-opus-4.5', Got '{result}'")
-        assert result == "claude-opus-4.5"
-    
+
+        print(f"Comparing result: Expected 'claude-opus-4-5', Got '{result}'")
+        assert result == "claude-opus-4-5"
+
     def test_inverted_format_all_families(self):
         """
         What it does: Verifies inverted format works for all families.
         Goal: Check haiku, sonnet, opus all work with inverted format.
         """
         print("Action: Normalizing inverted format for all families...")
-        
+
         print("  Testing haiku...")
         result_haiku = normalize_model_name("claude-4.5-haiku-high")
-        print(f"  Comparing: Expected 'claude-haiku-4.5', Got '{result_haiku}'")
-        assert result_haiku == "claude-haiku-4.5"
-        
+        print(f"  Comparing: Expected 'claude-haiku-4-5', Got '{result_haiku}'")
+        assert result_haiku == "claude-haiku-4-5"
+
         print("  Testing sonnet...")
         result_sonnet = normalize_model_name("claude-4.5-sonnet-low")
-        print(f"  Comparing: Expected 'claude-sonnet-4.5', Got '{result_sonnet}'")
-        assert result_sonnet == "claude-sonnet-4.5"
-        
+        print(f"  Comparing: Expected 'claude-sonnet-4-5', Got '{result_sonnet}'")
+        assert result_sonnet == "claude-sonnet-4-5"
+
         print("  Testing opus...")
         result_opus = normalize_model_name("claude-4.5-opus-high")
-        print(f"  Comparing: Expected 'claude-opus-4.5', Got '{result_opus}'")
-        assert result_opus == "claude-opus-4.5"
-    
-    def test_inverted_format_requires_suffix(self):
+        print(f"  Comparing: Expected 'claude-opus-4-5', Got '{result_opus}'")
+        assert result_opus == "claude-opus-4-5"
+
+    def test_inverted_format_without_suffix(self):
         """
-        What it does: Verifies that suffix is required (doesn't match claude-3.7-sonnet).
-        Goal: CRITICAL - ensure Pattern 5 doesn't break already-normalized formats.
-        
-        This is the most important test for Pattern 5. The regex MUST require a suffix
-        to avoid matching already-normalized formats like claude-3.7-sonnet.
+        What it does: Verifies inverted format also matches WITHOUT a suffix.
+        Goal: Ensure legacy inverted names are converted to family-first dash form.
+
+        The upstream uses family-first dash IDs (claude-sonnet-3-7), so inverted
+        names must be reordered even when no effort suffix is present.
         """
-        print("Action: Normalizing 'claude-3.7-sonnet' (should NOT match Pattern 5)...")
+        print("Action: Normalizing 'claude-3.7-sonnet' (inverted, no suffix)...")
         result = normalize_model_name("claude-3.7-sonnet")
-        
-        print(f"Comparing result: Expected 'claude-3.7-sonnet' (unchanged), Got '{result}'")
-        assert result == "claude-3.7-sonnet"
-        
-        print("Action: Normalizing 'claude-4.5-sonnet' (should NOT match Pattern 5)...")
+
+        print(f"Comparing result: Expected 'claude-sonnet-3-7', Got '{result}'")
+        assert result == "claude-sonnet-3-7"
+
+        print("Action: Normalizing 'claude-4.5-sonnet' (inverted, no suffix)...")
         result2 = normalize_model_name("claude-4.5-sonnet")
-        
-        print(f"Comparing result: Expected 'claude-4.5-sonnet' (unchanged), Got '{result2}'")
-        assert result2 == "claude-4.5-sonnet"
-    
+
+        print(f"Comparing result: Expected 'claude-sonnet-4-5', Got '{result2}'")
+        assert result2 == "claude-sonnet-4-5"
+
     def test_inverted_format_case_insensitive(self):
         """
-        What it does: CLAUDE-4.5-OPUS-HIGH → claude-opus-4.5
+        What it does: CLAUDE-4.5-OPUS-HIGH → claude-opus-4-5
         Goal: Check case insensitivity for inverted format.
         """
         print("Action: Normalizing 'CLAUDE-4.5-OPUS-HIGH'...")
         result = normalize_model_name("CLAUDE-4.5-OPUS-HIGH")
-        
-        print(f"Comparing result: Expected 'claude-opus-4.5', Got '{result}'")
-        assert result == "claude-opus-4.5"
+
+        print(f"Comparing result: Expected 'claude-opus-4-5', Got '{result}'")
+        assert result == "claude-opus-4-5"
     
-    # === Already normalized (passthrough) ===
-    
-    def test_passthrough_already_normalized_haiku(self):
+    # === Dotted minor version (dot → dash) ===
+
+    def test_normalizes_dotted_haiku_to_dash(self):
         """
-        What it does: claude-haiku-4.5 → claude-haiku-4.5
-        Goal: Check that already normalized models are unchanged.
+        What it does: claude-haiku-4.5 → claude-haiku-4-5
+        Goal: Check dot-to-dash conversion for Haiku.
         """
         print("Action: Normalizing 'claude-haiku-4.5'...")
         result = normalize_model_name("claude-haiku-4.5")
-        
-        print(f"Comparing result: Expected 'claude-haiku-4.5', Got '{result}'")
-        assert result == "claude-haiku-4.5"
-    
-    def test_passthrough_already_normalized_sonnet(self):
+
+        print(f"Comparing result: Expected 'claude-haiku-4-5', Got '{result}'")
+        assert result == "claude-haiku-4-5"
+
+    def test_normalizes_dotted_sonnet_to_dash(self):
         """
-        What it does: claude-sonnet-4.5 → claude-sonnet-4.5
-        Goal: Check passthrough for Sonnet.
+        What it does: claude-sonnet-4.5 → claude-sonnet-4-5
+        Goal: Check dot-to-dash conversion for Sonnet.
         """
         print("Action: Normalizing 'claude-sonnet-4.5'...")
         result = normalize_model_name("claude-sonnet-4.5")
-        
-        print(f"Comparing result: Expected 'claude-sonnet-4.5', Got '{result}'")
-        assert result == "claude-sonnet-4.5"
+
+        print(f"Comparing result: Expected 'claude-sonnet-4-5', Got '{result}'")
+        assert result == "claude-sonnet-4-5"
     
     def test_passthrough_auto(self):
         """
@@ -416,29 +416,29 @@ class TestNormalizeModelNameParametrized:
     """Parametrized tests for complete coverage of scenarios."""
     
     @pytest.mark.parametrize("input_model,expected", [
-        # Standard format with minor version
-        ("claude-haiku-4-5", "claude-haiku-4.5"),
-        ("claude-haiku-4-5-20251001", "claude-haiku-4.5"),
-        ("claude-haiku-4-5-latest", "claude-haiku-4.5"),
-        ("claude-sonnet-4-5", "claude-sonnet-4.5"),
-        ("claude-sonnet-4-5-20250929", "claude-sonnet-4.5"),
-        ("claude-opus-4-5", "claude-opus-4.5"),
-        ("claude-opus-4-5-20251101", "claude-opus-4.5"),
+        # Standard format with minor version (already canonical dash form)
+        ("claude-haiku-4-5", "claude-haiku-4-5"),
+        ("claude-haiku-4-5-20251001", "claude-haiku-4-5"),
+        ("claude-haiku-4-5-latest", "claude-haiku-4-5"),
+        ("claude-sonnet-4-5", "claude-sonnet-4-5"),
+        ("claude-sonnet-4-5-20250929", "claude-sonnet-4-5"),
+        ("claude-opus-4-5", "claude-opus-4-5"),
+        ("claude-opus-4-5-20251101", "claude-opus-4-5"),
         # Without minor version
         ("claude-sonnet-4", "claude-sonnet-4"),
         ("claude-sonnet-4-20250514", "claude-sonnet-4"),
         ("claude-haiku-4", "claude-haiku-4"),
         ("claude-opus-4", "claude-opus-4"),
-        # Legacy format
-        ("claude-3-7-sonnet", "claude-3.7-sonnet"),
-        ("claude-3-7-sonnet-20250219", "claude-3.7-sonnet"),
-        ("claude-3-5-haiku", "claude-3.5-haiku"),
-        ("claude-3-0-opus", "claude-3.0-opus"),
-        # Already normalized
-        ("claude-haiku-4.5", "claude-haiku-4.5"),
-        ("claude-sonnet-4.5", "claude-sonnet-4.5"),
-        ("claude-opus-4.5", "claude-opus-4.5"),
-        ("claude-3.7-sonnet", "claude-3.7-sonnet"),
+        # Legacy inverted format
+        ("claude-3-7-sonnet", "claude-sonnet-3-7"),
+        ("claude-3-7-sonnet-20250219", "claude-sonnet-3-7"),
+        ("claude-3-5-haiku", "claude-haiku-3-5"),
+        ("claude-3-0-opus", "claude-opus-3-0"),
+        # Dotted minor version (dot → dash)
+        ("claude-haiku-4.5", "claude-haiku-4-5"),
+        ("claude-sonnet-4.5", "claude-sonnet-4-5"),
+        ("claude-opus-4.5", "claude-opus-4-5"),
+        ("claude-3.7-sonnet", "claude-sonnet-3-7"),
         ("auto", "auto"),
         # Passthrough for unknown
         ("gpt-4", "gpt-4"),
@@ -575,16 +575,16 @@ class TestGetModelIdForOpenCode:
         """
         print("Action: get_model_id_for_kiro('claude-haiku-4-5-20251001', {})...")
         result = get_model_id_for_kiro("claude-haiku-4-5-20251001", {})
-        
-        print(f"Comparing result: Expected 'claude-haiku-4.5', Got '{result}'")
-        assert result == "claude-haiku-4.5"
+
+        print(f"Comparing result: Expected 'claude-haiku-4-5', Got '{result}'")
+        assert result == "claude-haiku-4-5"
     
     def test_returns_internal_id_for_hidden_model(self):
         """
         What it does: Returns internal ID for hidden model (pass-through).
         Goal: Check hidden model resolution returns internal ID as-is.
         """
-        hidden = {"claude-3.7-sonnet": "CLAUDE_3_7_SONNET_20250219_V1_0"}
+        hidden = {"claude-sonnet-3-7": "CLAUDE_3_7_SONNET_20250219_V1_0"}
 
         print("Action: get_model_id_for_kiro('claude-3.7-sonnet', hidden)...")
         result = get_model_id_for_kiro("claude-3.7-sonnet", hidden)
@@ -597,7 +597,7 @@ class TestGetModelIdForOpenCode:
         What it does: Normalizes first, then checks hidden.
         Goal: Check operation order (normalize → hidden lookup → pass-through).
         """
-        hidden = {"claude-3.7-sonnet": "CLAUDE_3_7_SONNET_20250219_V1_0"}
+        hidden = {"claude-sonnet-3-7": "CLAUDE_3_7_SONNET_20250219_V1_0"}
 
         print("Action: get_model_id_for_kiro('claude-3-7-sonnet', hidden)...")
         result = get_model_id_for_kiro("claude-3-7-sonnet", hidden)
@@ -610,7 +610,7 @@ class TestGetModelIdForOpenCode:
         What it does: Normalizes with date suffix, then checks hidden.
         Goal: Check full normalization chain (normalize → hidden lookup → pass-through).
         """
-        hidden = {"claude-3.7-sonnet": "CLAUDE_3_7_SONNET_20250219_V1_0"}
+        hidden = {"claude-sonnet-3-7": "CLAUDE_3_7_SONNET_20250219_V1_0"}
 
         print("Action: get_model_id_for_kiro('claude-3-7-sonnet-20250219', hidden)...")
         result = get_model_id_for_kiro("claude-3-7-sonnet-20250219", hidden)
@@ -682,20 +682,20 @@ class TestModelResolverResolve:
         """
         print("Action: Resolving 'claude-haiku-4-5'...")
         result = model_resolver.resolve("claude-haiku-4-5")
-        
+
         print(f"Check result: {result}")
-        print(f"Comparing internal_id: Expected 'claude-haiku-4.5', Got '{result.internal_id}'")
-        assert result.internal_id == "claude-haiku-4.5"
-        
+        print(f"Comparing internal_id: Expected 'claude-haiku-4-5', Got '{result.internal_id}'")
+        assert result.internal_id == "claude-haiku-4-5"
+
         print(f"Comparing source: Expected 'cache', Got '{result.source}'")
         assert result.source == "cache"
-        
+
         print(f"Comparing is_verified: Expected True, Got {result.is_verified}")
         assert result.is_verified is True
-        
-        print(f"Comparing normalized: Expected 'claude-haiku-4.5', Got '{result.normalized}'")
-        assert result.normalized == "claude-haiku-4.5"
-        
+
+        print(f"Comparing normalized: Expected 'claude-haiku-4-5', Got '{result.normalized}'")
+        assert result.normalized == "claude-haiku-4-5"
+
         print(f"Comparing original_request: Expected 'claude-haiku-4-5', Got '{result.original_request}'")
         assert result.original_request == "claude-haiku-4-5"
     
@@ -726,8 +726,8 @@ class TestModelResolverResolve:
         result = model_resolver.resolve("claude-haiku-4-6")
 
         print(f"Check result: {result}")
-        print(f"Comparing internal_id: Expected 'claude-haiku-4.6' (normalized, pass-through), Got '{result.internal_id}'")
-        assert result.internal_id == "claude-haiku-4.6"
+        print(f"Comparing internal_id: Expected 'claude-haiku-4-6' (normalized, pass-through), Got '{result.internal_id}'")
+        assert result.internal_id == "claude-haiku-4-6"
 
         print(f"Comparing source: Expected 'passthrough', Got '{result.source}'")
         assert result.source == "passthrough"
@@ -742,9 +742,9 @@ class TestModelResolverResolve:
         """
         print("Action: Resolving 'claude-haiku-4-5-20251001'...")
         result = model_resolver.resolve("claude-haiku-4-5-20251001")
-        
-        print(f"Comparing normalized: Expected 'claude-haiku-4.5', Got '{result.normalized}'")
-        assert result.normalized == "claude-haiku-4.5"
+
+        print(f"Comparing normalized: Expected 'claude-haiku-4-5', Got '{result.normalized}'")
+        assert result.normalized == "claude-haiku-4-5"
         
         print(f"Comparing source: Expected 'cache', Got '{result.source}'")
         assert result.source == "cache"
@@ -821,14 +821,14 @@ class TestModelResolverGetAvailableModels:
         
         # Check cache models
         print("Check: Cache models present...")
-        assert "claude-haiku-4.5" in models
-        assert "claude-sonnet-4.5" in models
-        assert "claude-opus-4.5" in models
+        assert "claude-haiku-4-5" in models
+        assert "claude-sonnet-4-5" in models
+        assert "claude-opus-4-5" in models
         assert "auto" in models
-        
+
         # Check hidden models
         print("Check: Hidden models present...")
-        assert "claude-3.7-sonnet" in models
+        assert "claude-sonnet-3-7" in models
     
     def test_get_available_models_returns_sorted_list(self, model_resolver):
         """
@@ -849,7 +849,7 @@ class TestModelResolverGetAvailableModels:
         Goal: Check uniqueness.
         """
         # Add hidden model that already exists in cache
-        hidden = {"claude-haiku-4.5": "SOME_INTERNAL_ID"}
+        hidden = {"claude-haiku-4-5": "SOME_INTERNAL_ID"}
         resolver = ModelResolver(cache=mock_model_cache, hidden_models=hidden)
         
         print("Action: Getting list with potential duplicate...")
@@ -874,9 +874,9 @@ class TestModelResolverGetModelsByFamily:
         
         print(f"Received models: {models}")
         
-        assert "claude-haiku-4.5" in models
-        assert "claude-sonnet-4.5" not in models
-        assert "claude-opus-4.5" not in models
+        assert "claude-haiku-4-5" in models
+        assert "claude-sonnet-4-5" not in models
+        assert "claude-opus-4-5" not in models
     
     def test_get_models_by_family_sonnet(self, model_resolver):
         """
@@ -888,10 +888,10 @@ class TestModelResolverGetModelsByFamily:
         
         print(f"Received models: {models}")
         
-        assert "claude-sonnet-4.5" in models
+        assert "claude-sonnet-4-5" in models
         assert "claude-sonnet-4" in models
-        assert "claude-3.7-sonnet" in models  # Hidden model
-        assert "claude-haiku-4.5" not in models
+        assert "claude-sonnet-3-7" in models  # Hidden model
+        assert "claude-haiku-4-5" not in models
     
     def test_get_models_by_family_opus(self, model_resolver):
         """
@@ -903,8 +903,8 @@ class TestModelResolverGetModelsByFamily:
         
         print(f"Received models: {models}")
         
-        assert "claude-opus-4.5" in models
-        assert "claude-sonnet-4.5" not in models
+        assert "claude-opus-4-5" in models
+        assert "claude-sonnet-4-5" not in models
     
     def test_get_models_by_family_case_insensitive(self, model_resolver):
         """
@@ -913,10 +913,10 @@ class TestModelResolverGetModelsByFamily:
         """
         print("Action: Getting HAIKU models (uppercase)...")
         models = model_resolver.get_models_by_family("HAIKU")
-        
+
         print(f"Received models: {models}")
-        
-        assert "claude-haiku-4.5" in models
+
+        assert "claude-haiku-4-5" in models
 
 
 class TestModelResolverGetSuggestionsForModel:
@@ -1331,12 +1331,12 @@ class TestModelAliasSystemBasics:
         aliases = {"auto-kiro": "auto"}
         resolver = ModelResolver(cache=mock_model_cache, aliases=aliases)
         
-        print("Action: Resolving 'claude-haiku-4.5' (not aliased)...")
-        result = resolver.resolve("claude-haiku-4.5")
-        
-        print(f"Comparing internal_id: Expected 'claude-haiku-4.5', Got '{result.internal_id}'")
-        assert result.internal_id == "claude-haiku-4.5"
-        
+        print("Action: Resolving 'claude-haiku-4-5' (not aliased)...")
+        result = resolver.resolve("claude-haiku-4-5")
+
+        print(f"Comparing internal_id: Expected 'claude-haiku-4-5', Got '{result.internal_id}'")
+        assert result.internal_id == "claude-haiku-4-5"
+
         print(f"Comparing source: Expected 'cache', Got '{result.source}'")
         assert result.source == "cache"
     
@@ -1346,17 +1346,17 @@ class TestModelAliasSystemBasics:
         Purpose: Ensure alias works with normalization.
         """
         print("Setup: Creating resolver with alias to unnormalized name...")
-        aliases = {"my-haiku": "claude-haiku-4-5"}
+        aliases = {"my-haiku": "claude-haiku-4.5"}
         resolver = ModelResolver(cache=mock_model_cache, aliases=aliases)
-        
+
         print("Action: Resolving 'my-haiku'...")
         result = resolver.resolve("my-haiku")
-        
-        print(f"Comparing internal_id: Expected 'claude-haiku-4.5', Got '{result.internal_id}'")
-        assert result.internal_id == "claude-haiku-4.5"
-        
-        print(f"Comparing normalized: Expected 'claude-haiku-4.5', Got '{result.normalized}'")
-        assert result.normalized == "claude-haiku-4.5"
+
+        print(f"Comparing internal_id: Expected 'claude-haiku-4-5', Got '{result.internal_id}'")
+        assert result.internal_id == "claude-haiku-4-5"
+
+        print(f"Comparing normalized: Expected 'claude-haiku-4-5', Got '{result.normalized}'")
+        assert result.normalized == "claude-haiku-4-5"
     
     def test_multiple_aliases(self, mock_model_cache):
         """
@@ -1380,10 +1380,10 @@ class TestModelAliasSystemBasics:
         assert result1.internal_id == "auto"
         
         print(f"Comparing: my-opus → {result2.internal_id}")
-        assert result2.internal_id == "claude-opus-4.5"
-        
+        assert result2.internal_id == "claude-opus-4-5"
+
         print(f"Comparing: fast → {result3.internal_id}")
-        assert result3.internal_id == "claude-haiku-4.5"
+        assert result3.internal_id == "claude-haiku-4-5"
 
 
 class TestModelAliasSystemEdgeCases:
@@ -1401,8 +1401,8 @@ class TestModelAliasSystemEdgeCases:
         print("Action: Resolving 'future-model'...")
         result = resolver.resolve("future-model")
 
-        print(f"Comparing internal_id: Expected 'claude-haiku-5.0' (pass-through), Got '{result.internal_id}'")
-        assert result.internal_id == "claude-haiku-5.0"
+        print(f"Comparing internal_id: Expected 'claude-haiku-5-0' (normalized, pass-through), Got '{result.internal_id}'")
+        assert result.internal_id == "claude-haiku-5-0"
 
         print(f"Comparing source: Expected 'passthrough', Got '{result.source}'")
         assert result.source == "passthrough"
@@ -1416,7 +1416,7 @@ class TestModelAliasSystemEdgeCases:
         Purpose: Ensure alias works with hidden models and returns internal ID via pass-through.
         """
         print("Setup: Creating resolver with alias to hidden model...")
-        hidden = {"claude-3.7-sonnet": "CLAUDE_3_7_SONNET_20250219_V1_0"}
+        hidden = {"claude-sonnet-3-7": "CLAUDE_3_7_SONNET_20250219_V1_0"}
         aliases = {"legacy-sonnet": "claude-3.7-sonnet"}
         resolver = ModelResolver(cache=mock_model_cache, hidden_models=hidden, aliases=aliases)
 
@@ -1460,15 +1460,15 @@ class TestModelAliasSystemEdgeCases:
         Purpose: CRITICAL - alias should take precedence!
         """
         print("Setup: Creating resolver with alias shadowing real model...")
-        # Alias "auto" to point to "claude-sonnet-4.5"
-        aliases = {"auto": "claude-sonnet-4.5"}
+        # Alias "auto" to point to "claude-sonnet-4-5"
+        aliases = {"auto": "claude-sonnet-4-5"}
         resolver = ModelResolver(cache=mock_model_cache, aliases=aliases)
-        
+
         print("Action: Resolving 'auto'...")
         result = resolver.resolve("auto")
-        
-        print(f"Comparing internal_id: Expected 'claude-sonnet-4.5', Got '{result.internal_id}'")
-        assert result.internal_id == "claude-sonnet-4.5"
+
+        print(f"Comparing internal_id: Expected 'claude-sonnet-4-5', Got '{result.internal_id}'")
+        assert result.internal_id == "claude-sonnet-4-5"
         
         print("CRITICAL: Alias takes precedence over cache!")
     
@@ -1510,8 +1510,8 @@ class TestHiddenFromListFunctionality:
         assert "auto" not in models
         
         print("Check: Other models still present...")
-        assert "claude-haiku-4.5" in models
-        assert "claude-sonnet-4.5" in models
+        assert "claude-haiku-4-5" in models
+        assert "claude-sonnet-4-5" in models
     
     def test_hidden_model_still_works_when_requested(self, mock_model_cache):
         """
@@ -1571,9 +1571,9 @@ class TestHiddenFromListFunctionality:
         print("Check: Both hidden models NOT in list...")
         assert "auto" not in models
         assert "claude-sonnet-4" not in models
-        
+
         print("Check: Other models still present...")
-        assert "claude-haiku-4.5" in models
+        assert "claude-haiku-4-5" in models
     
     def test_empty_hidden_from_list(self, mock_model_cache):
         """
@@ -1589,7 +1589,7 @@ class TestHiddenFromListFunctionality:
         print(f"Received models: {models}")
         print("Check: All models present...")
         assert "auto" in models
-        assert "claude-haiku-4.5" in models
+        assert "claude-haiku-4-5" in models
     
     def test_none_hidden_from_list(self, mock_model_cache):
         """
@@ -1646,19 +1646,19 @@ class TestAliasSystemIntegration:
         Purpose: Ensure set logic works correctly.
         """
         print("Setup: Creating resolver with alias to existing model...")
-        aliases = {"my-haiku": "claude-haiku-4.5"}
+        aliases = {"my-haiku": "claude-haiku-4-5"}
         resolver = ModelResolver(cache=mock_model_cache, aliases=aliases)
-        
+
         print("Action: Getting available models...")
         models = resolver.get_available_models()
-        
+
         print(f"Received models: {models}")
         print("Check: No duplicates...")
         assert len(models) == len(set(models))
-        
+
         print("Check: Both alias and original present...")
         assert "my-haiku" in models
-        assert "claude-haiku-4.5" in models
+        assert "claude-haiku-4-5" in models
     
     def test_alias_with_hidden_models_and_hidden_from_list(self, mock_model_cache):
         """
@@ -1666,7 +1666,7 @@ class TestAliasSystemIntegration:
         Purpose: Ensure all features work together.
         """
         print("Setup: Creating resolver with all features...")
-        hidden_models = {"claude-3.7-sonnet": "CLAUDE_3_7_SONNET_20250219_V1_0"}
+        hidden_models = {"claude-sonnet-3-7": "CLAUDE_3_7_SONNET_20250219_V1_0"}
         aliases = {"auto-kiro": "auto", "legacy": "claude-3.7-sonnet"}
         hidden_from_list = ["auto"]
         
@@ -1688,14 +1688,14 @@ class TestAliasSystemIntegration:
         print("Check: Original 'auto' hidden...")
         assert "auto" not in models
         
-        print("Check: Hidden model 'claude-3.7-sonnet' present...")
-        assert "claude-3.7-sonnet" in models
-        
+        print("Check: Hidden model 'claude-sonnet-3-7' present...")
+        assert "claude-sonnet-3-7" in models
+
         print("Check: Alias to hidden model 'legacy' present...")
         assert "legacy" in models
-        
+
         print("Check: Cache models present...")
-        assert "claude-haiku-4.5" in models
+        assert "claude-haiku-4-5" in models
 
 
 class TestAliasSystemSecurity:

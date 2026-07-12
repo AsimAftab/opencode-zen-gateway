@@ -102,8 +102,14 @@ class ToolResultContentBlock(BaseModel):
 
     type: Literal["tool_result"] = "tool_result"
     tool_use_id: str
+    # Dict[str, Any] is a deliberate fallback: tool results may nest content
+    # block types this gateway doesn't model yet, and unknown types must not
+    # cause a 422 (converters handle dict blocks generically).
     content: Optional[
-        Union[str, List[Union["TextContentBlock", "ImageContentBlock", "ToolReferenceContentBlock"]]]
+        Union[
+            str,
+            List[Union["TextContentBlock", "ImageContentBlock", "ToolReferenceContentBlock", Dict[str, Any]]],
+        ]
     ] = None
     is_error: Optional[bool] = None
 
@@ -162,7 +168,12 @@ class ImageContentBlock(BaseModel):
     source: Union[Base64ImageSource, URLImageSource]
 
 
-# Union type for all content blocks (including images and thinking)
+# Union type for all content blocks (including images and thinking).
+# Dict[str, Any] is a deliberate last-resort fallback so content block types
+# introduced by newer clients (e.g. Claude Code sending document,
+# redacted_thinking, server_tool_use, ...) validate as plain dicts instead of
+# failing the whole request with a 422. Converters handle dict blocks
+# generically by inspecting block.get("type").
 ContentBlock = Union[
     TextContentBlock,
     ThinkingContentBlock,
@@ -170,6 +181,7 @@ ContentBlock = Union[
     ToolUseContentBlock,
     ToolResultContentBlock,
     ToolReferenceContentBlock,
+    Dict[str, Any],
 ]
 
 

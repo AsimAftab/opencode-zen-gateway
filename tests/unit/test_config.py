@@ -530,8 +530,10 @@ class TestFallbackModelsIntegration:
     async def test_fallback_models_work_with_model_resolver(self):
         """
         What it does: Verifies that fallback models work with ModelResolver normalization.
-        Purpose: Ensure that model name normalization (claude-opus-4-5 → claude-opus-4.5)
-                 works correctly with fallback models, just like with API models.
+        Purpose: Ensure that model name normalization (claude-opus-4.5 → claude-opus-4-5,
+                 date stripping) works correctly with fallback models. Normalized dash-form
+                 IDs that are not literal fallback entries pass through unchanged
+                 (gateway, not gatekeeper — OpenCode Zen uses dash-form IDs upstream).
         """
         print('Setup: Importing FALLBACK_MODELS and creating cache...')
         from opencode_zen.config import FALLBACK_MODELS
@@ -542,11 +544,20 @@ class TestFallbackModelsIntegration:
         print(f'Cache populated with {cache.size} fallback models')
         print(f'Model IDs in cache: {cache.get_all_model_ids()}')
         resolver = ModelResolver(cache=cache, hidden_models={})
-        print('\nAction: Testing normalization with dash format...')
-        test_cases = [('claude-opus-4-5', 'claude-opus-4.5'), (
-            'claude-sonnet-4-5', 'claude-sonnet-4.5'), ('claude-haiku-4-5',
-            'claude-haiku-4.5')]
-        for input_name, expected_normalized in test_cases:
+        print('\nAction: Testing normalization against fallback cache...')
+        # (input, expected_normalized, expected_source)
+        # FALLBACK_MODELS now uses dash-form Claude IDs (matching the live
+        # OpenCode Zen /v1/models endpoint), so normalized names hit the cache.
+        test_cases = [
+            ('claude-sonnet-4', 'claude-sonnet-4', 'cache'),
+            ('claude-sonnet-4-20250514', 'claude-sonnet-4', 'cache'),
+            ('auto', 'auto', 'cache'),
+            ('claude-opus-4-5', 'claude-opus-4-5', 'cache'),
+            ('claude-sonnet-4.5', 'claude-sonnet-4-5', 'cache'),
+            ('claude-haiku-4-5-20251001', 'claude-haiku-4-5', 'cache'),
+            ('some-unknown-model', 'some-unknown-model', 'passthrough'),
+        ]
+        for input_name, expected_normalized, expected_source in test_cases:
             print(f'\n  Testing: {input_name} → {expected_normalized}')
             resolution = resolver.resolve(input_name)
             print(f'    Resolution source: {resolution.source}')
@@ -558,13 +569,13 @@ class TestFallbackModelsIntegration:
                 )
             assert resolution.normalized == expected_normalized
             print(
-                f"    Comparing source: Expected 'cache', Got '{resolution.source}'"
+                f"    Comparing source: Expected '{expected_source}', Got '{resolution.source}'"
                 )
-            assert resolution.source == 'cache', f'Model {input_name} should be found in fallback cache'
+            assert resolution.source == expected_source
             print(
-                f'    Comparing is_verified: Expected True, Got {resolution.is_verified}'
+                f"    Comparing internal_id: Expected '{expected_normalized}', Got '{resolution.internal_id}'"
                 )
-            assert resolution.is_verified is True
+            assert resolution.internal_id == expected_normalized
 
     @pytest.mark.asyncio
     async def test_fallback_models_appear_in_available_models(self):
@@ -595,10 +606,11 @@ class TestFallbackModelsIntegration:
 class TestWebSearchConfig:
     """Tests for WebSearch configuration (WEB_SEARCH_ENABLED)."""
 
-    def test_web_search_enabled_default_true(self, monkeypatch):
+    def test_web_search_enabled_default_false(self, monkeypatch):
         """
-        What it does: Verifies WEB_SEARCH_ENABLED defaults to true.
-        Purpose: Ensure auto-injection is enabled by default.
+        What it does: Verifies WEB_SEARCH_ENABLED defaults to false.
+        Purpose: Ensure auto-injection is disabled by default (injecting an
+                 undeclared web_search tool breaks clients like Claude Code).
         """
         print('Setup: Removing WEB_SEARCH_ENABLED from environment...')
         monkeypatch.delenv('WEB_SEARCH_ENABLED', raising=False)
@@ -607,9 +619,9 @@ class TestWebSearchConfig:
         import opencode_zen.config as config_module
         reload(config_module)
         print(
-            f'Comparing WEB_SEARCH_ENABLED: Expected True, Got {config_module.WEB_SEARCH_ENABLED}'
+            f'Comparing WEB_SEARCH_ENABLED: Expected False, Got {config_module.WEB_SEARCH_ENABLED}'
             )
-        assert config_module.WEB_SEARCH_ENABLED is True
+        assert config_module.WEB_SEARCH_ENABLED is False
 
     def test_web_search_enabled_false(self, monkeypatch):
         """

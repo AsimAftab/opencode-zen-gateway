@@ -1580,12 +1580,9 @@ class TestMessagesNativeWebSearchAccountSelection:
         print('✅ Native WebSearch uses get_first_account() (no failover)')
 
 
-@pytest.mark.skip(reason='Obsolete after payload/account refactoring')
 class TestCountTokensEndpoint:
     """Tests for /v1/messages/count_tokens endpoint."""
 
-    @pytest.mark.skip(reason=
-        'Obsolete after OpenAI payload and Account System migration')
     def test_count_tokens_basic(self, test_client, valid_proxy_api_key):
         """
         What it does: Tests basic token counting with one message.
@@ -1609,8 +1606,6 @@ class TestCountTokensEndpoint:
         assert data['input_tokens'] > 0
         print(f"✅ Token count: {data['input_tokens']} tokens")
 
-    @pytest.mark.skip(reason=
-        'Obsolete after OpenAI payload and Account System migration')
     def test_count_tokens_with_tools(self, test_client, valid_proxy_api_key):
         """
         What it does: Tests token counting with tool definitions.
@@ -1643,8 +1638,6 @@ class TestCountTokensEndpoint:
         assert tokens_with_tools > tokens_no_tools
         print('✅ Tools increase token count')
 
-    @pytest.mark.skip(reason=
-        'Obsolete after OpenAI payload and Account System migration')
     def test_count_tokens_with_system_string(self, test_client,
         valid_proxy_api_key):
         """
@@ -1676,8 +1669,6 @@ class TestCountTokensEndpoint:
         assert tokens_with_system > tokens_no_system
         print('✅ System prompt increases token count')
 
-    @pytest.mark.skip(reason=
-        'Obsolete after OpenAI payload and Account System migration')
     def test_count_tokens_with_system_blocks(self, test_client,
         valid_proxy_api_key):
         """
@@ -1701,8 +1692,6 @@ class TestCountTokensEndpoint:
         assert data['input_tokens'] > 0
         print(f"✅ System blocks counted: {data['input_tokens']} tokens")
 
-    @pytest.mark.skip(reason=
-        'Obsolete after OpenAI payload and Account System migration')
     def test_count_tokens_empty_messages(self, test_client, valid_proxy_api_key
         ):
         """
@@ -1720,8 +1709,6 @@ class TestCountTokensEndpoint:
         assert response.status_code == 422
         print('✅ Empty messages rejected')
 
-    @pytest.mark.skip(reason=
-        'Obsolete after OpenAI payload and Account System migration')
     def test_count_tokens_invalid_api_key(self, test_client,
         invalid_proxy_api_key):
         """
@@ -1746,8 +1733,6 @@ class TestCountTokensEndpoint:
         assert detail['error']['type'] == 'authentication_error'
         print('✅ Invalid API key rejected')
 
-    @pytest.mark.skip(reason=
-        'Obsolete after OpenAI payload and Account System migration')
     def test_count_tokens_multiple_messages(self, test_client,
         valid_proxy_api_key):
         """
@@ -1777,8 +1762,6 @@ class TestCountTokensEndpoint:
         assert tokens_multi > tokens_single
         print('✅ Multiple messages increase token count')
 
-    @pytest.mark.skip(reason=
-        'Obsolete after OpenAI payload and Account System migration')
     def test_count_tokens_with_images(self, test_client, valid_proxy_api_key):
         """
         What it does: Tests token counting for messages with images.
@@ -1812,8 +1795,6 @@ class TestCountTokensEndpoint:
         assert tokens_with_image > tokens_text_only
         print('✅ Image increases token count')
 
-    @pytest.mark.skip(reason=
-        'Obsolete after OpenAI payload and Account System migration')
     def test_count_tokens_consistency(self, test_client, valid_proxy_api_key):
         """
         What it does: Tests deterministic behavior - same input gives same output.
@@ -1839,8 +1820,6 @@ class TestCountTokensEndpoint:
         assert tokens1 == tokens2
         print('✅ Token counting is deterministic')
 
-    @pytest.mark.skip(reason=
-        'Obsolete after OpenAI payload and Account System migration')
     def test_count_tokens_no_max_tokens_required(self, test_client,
         valid_proxy_api_key):
         """
@@ -1862,3 +1841,159 @@ class TestCountTokensEndpoint:
         assert 'input_tokens' in data
         assert data['input_tokens'] > 0
         print('✅ max_tokens is NOT required for count_tokens')
+
+
+def _mock_upstream_error_client(status_code, json_body=None, text=''):
+    """Builds a mocked OpenCodeHttpClient whose request returns an error response."""
+    mock_response = MagicMock()
+    mock_response.status_code = status_code
+    mock_response.aread = AsyncMock()
+    if json_body is not None:
+        mock_response.json = Mock(return_value=json_body)
+    else:
+        mock_response.json = Mock(side_effect=ValueError('not json'))
+    mock_response.text = text
+    mock_client = MagicMock()
+    mock_client.request_with_retry = AsyncMock(return_value=mock_response)
+    mock_client._owns_client = False
+    return mock_client
+
+
+class TestServerSideToolStripping:
+    """Tests for stripping server-side tools (e.g. web_search_20250305) from requests."""
+
+    def test_server_side_tool_is_stripped_not_diverted(self, test_client, valid_proxy_api_key):
+        """
+        What it does: Sends a request with a server-side web_search tool and verifies the
+        request still reaches the normal LLM path with the tool removed.
+        Purpose: Claude Code sends web_search_20250305; the upstream has no server-side
+        tool support, so the tool must be silently stripped instead of diverting the request.
+        """
+        print('Setup: request with a server-side web_search tool...')
+        payload = {'model': 'claude-sonnet-4-5', 'max_tokens': 100, 'messages':
+            [{'role': 'user', 'content': 'Hello'}], 'tools': [{'type':
+            'web_search_20250305', 'name': 'web_search', 'max_uses': 5}]}
+        with patch('opencode_zen.routes_anthropic.anthropic_to_opencode'
+            ) as mock_convert, patch(
+            'opencode_zen.routes_anthropic.OpenCodeHttpClient'
+            ) as mock_client_cls:
+            mock_convert.return_value = {'model': 'claude-sonnet-4-5',
+                'messages': [], 'stream': True}
+            mock_client_cls.return_value = _mock_upstream_error_client(500,
+                {'type': 'error', 'error': {'type': 'x', 'message': 'y'}})
+            print('Action: POST /v1/messages...')
+            response = test_client.post('/v1/messages', headers={
+                'x-api-key': valid_proxy_api_key}, json=payload)
+            print(f'Status: {response.status_code}')
+            print('Checking: request was converted (NOT diverted before conversion)...')
+            assert mock_convert.called
+            request_arg = mock_convert.call_args[0][0]
+            print(f'Checking: server-side tool stripped: {request_arg.tools}')
+            assert request_arg.tools is None or all(not (getattr(t, 'type',
+                None) or '').startswith('web_search') for t in request_arg.tools)
+
+    def test_user_defined_tools_are_kept(self, test_client, valid_proxy_api_key):
+        """
+        What it does: Verifies user-defined tools (with input_schema) survive stripping.
+        Purpose: Only server-side tools without input_schema are removed.
+        """
+        print('Setup: request with one user-defined and one server-side tool...')
+        payload = {'model': 'claude-sonnet-4-5', 'max_tokens': 100,
+            'messages': [{'role': 'user', 'content': 'Hello'}], 'tools': [{
+            'name': 'my_tool', 'description': 'd', 'input_schema': {'type':
+            'object', 'properties': {}}}, {'type': 'web_search_20250305',
+            'name': 'web_search'}]}
+        with patch('opencode_zen.routes_anthropic.anthropic_to_opencode'
+            ) as mock_convert, patch(
+            'opencode_zen.routes_anthropic.OpenCodeHttpClient'
+            ) as mock_client_cls:
+            mock_convert.return_value = {'model': 'claude-sonnet-4-5',
+                'messages': [], 'stream': True}
+            mock_client_cls.return_value = _mock_upstream_error_client(500,
+                {'type': 'error', 'error': {'type': 'x', 'message': 'y'}})
+            print('Action: POST /v1/messages...')
+            test_client.post('/v1/messages', headers={'x-api-key':
+                valid_proxy_api_key}, json=payload)
+            request_arg = mock_convert.call_args[0][0]
+            tool_names = [t.name for t in (request_arg.tools or [])]
+            print(f'Checking: kept tools = {tool_names}')
+            assert 'my_tool' in tool_names
+            assert all(t.input_schema is not None for t in request_arg.tools)
+
+
+class TestUpstreamErrorPassthrough:
+    """Tests for clean passthrough of upstream Anthropic-shaped error bodies."""
+
+    def test_anthropic_shaped_upstream_error_passes_through(self,
+        test_client, valid_proxy_api_key):
+        """
+        What it does: Returns the upstream error type/message verbatim in Anthropic shape.
+        Purpose: Clients (Claude Code) must see the real upstream message, e.g.
+        'Model X is not supported', not a stringified wrapper around it.
+        """
+        print('Setup: upstream returns Anthropic-shaped 400...')
+        payload = {'model': 'not-a-model', 'max_tokens': 10, 'messages': [{
+            'role': 'user', 'content': 'hi'}]}
+        with patch('opencode_zen.routes_anthropic.OpenCodeHttpClient'
+            ) as mock_client_cls:
+            mock_client_cls.return_value = _mock_upstream_error_client(400,
+                {'type': 'error', 'error': {'type': 'ModelError', 'message':
+                'Model not-a-model is not supported'}})
+            print('Action: POST /v1/messages...')
+            response = test_client.post('/v1/messages', headers={
+                'x-api-key': valid_proxy_api_key}, json=payload)
+            print(f'Status: {response.status_code}, body: {response.json()}')
+            assert response.status_code == 400
+            data = response.json()
+            assert data['type'] == 'error'
+            assert data['error']['type'] == 'ModelError'
+            assert data['error']['message'] == 'Model not-a-model is not supported'
+
+    def test_plain_text_upstream_error_is_wrapped(self, test_client,
+        valid_proxy_api_key):
+        """
+        What it does: Wraps a non-JSON upstream error body into Anthropic error shape.
+        Purpose: Malformed upstream errors must still produce a valid error response.
+        """
+        print('Setup: upstream returns plain-text 502...')
+        payload = {'model': 'claude-sonnet-4-5', 'max_tokens': 10,
+            'messages': [{'role': 'user', 'content': 'hi'}]}
+        with patch('opencode_zen.routes_anthropic.OpenCodeHttpClient'
+            ) as mock_client_cls:
+            mock_client_cls.return_value = _mock_upstream_error_client(502,
+                None, 'Bad gateway')
+            print('Action: POST /v1/messages...')
+            response = test_client.post('/v1/messages', headers={
+                'x-api-key': valid_proxy_api_key}, json=payload)
+            print(f'Status: {response.status_code}, body: {response.json()}')
+            assert response.status_code == 502
+            data = response.json()
+            assert data['type'] == 'error'
+            assert data['error']['message'] == 'Bad gateway'
+
+
+class TestUnknownContentBlockTolerance:
+    """Tests for accepting content block types this gateway does not model."""
+
+    def test_unknown_block_type_does_not_422(self, test_client, valid_proxy_api_key):
+        """
+        What it does: Sends a message containing an unknown content block type and
+        verifies the request passes validation (no 422).
+        Purpose: Newer Claude Code versions send block types the gateway does not
+        know; they must validate as plain dicts instead of failing the request.
+        """
+        print('Setup: request with an unknown content block type...')
+        payload = {'model': 'claude-sonnet-4-5', 'max_tokens': 10,
+            'messages': [{'role': 'user', 'content': [{'type': 'text',
+            'text': 'hi'}, {'type': 'document', 'source': {'type': 'text',
+            'media_type': 'text/plain', 'data': 'file contents'}}]}]}
+        with patch('opencode_zen.routes_anthropic.OpenCodeHttpClient'
+            ) as mock_client_cls:
+            mock_client_cls.return_value = _mock_upstream_error_client(500,
+                {'type': 'error', 'error': {'type': 'x', 'message': 'y'}})
+            print('Action: POST /v1/messages...')
+            response = test_client.post('/v1/messages', headers={
+                'x-api-key': valid_proxy_api_key}, json=payload)
+            print(f'Status: {response.status_code}')
+            print('Checking: validation passed (not 422)...')
+            assert response.status_code != 422
