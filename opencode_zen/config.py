@@ -213,15 +213,19 @@ HIDDEN_FROM_LIST: List[str] = ["auto"]
 # - Some models may not be available on your OpenCode plan (e.g., Opus on free tier)
 # - New models released after this version won't appear here
 # - Update gateway regularly to get the latest model list
+# NOTE: OpenCode Zen uses DASH-form Claude IDs (claude-sonnet-4-5), verified
+# against the live /v1/models endpoint.
 FALLBACK_MODELS: List[Dict[str, str]] = [
     {"modelId": "auto"},
     {"modelId": "claude-sonnet-4"},
-    {"modelId": "claude-sonnet-4.5"},
-    {"modelId": "claude-sonnet-4.6"},
-    {"modelId": "claude-haiku-4.5"},
-    {"modelId": "claude-opus-4.5"},
-    {"modelId": "claude-opus-4.6"},
-    {"modelId": "claude-opus-4.7"},
+    {"modelId": "claude-sonnet-4-5"},
+    {"modelId": "claude-sonnet-4-6"},
+    {"modelId": "claude-sonnet-5"},
+    {"modelId": "claude-haiku-4-5"},
+    {"modelId": "claude-opus-4-5"},
+    {"modelId": "claude-opus-4-6"},
+    {"modelId": "claude-opus-4-7"},
+    {"modelId": "claude-opus-4-8"},
     {"modelId": "deepseek-3.2"},
     {"modelId": "glm-5"},
     {"modelId": "minimax-m2.1"},
@@ -435,12 +439,12 @@ AUTO_TRIM_PAYLOAD: bool = os.getenv("AUTO_TRIM_PAYLOAD", "false").lower() in ("t
 # WebSearch Settings (MCP Tool Emulation)
 # ==================================================================================================
 
-# Enable web_search tool auto-injection (default: true)
-# When enabled, web_search is automatically added as a tool for MCP emulation (Path B)
-# Model decides whether to use it or not
-#
-# Note: Native Anthropic server-side tools (Path A) work ALWAYS, regardless of this setting
-WEB_SEARCH_ENABLED: bool = os.getenv("WEB_SEARCH_ENABLED", "true").lower() in ("true", "1", "yes")
+# Enable web_search tool auto-injection (default: false, opt-in)
+# When enabled, a web_search function tool is offered to the model on every
+# request. The model's tool call is returned to the CLIENT for execution like
+# any other function call — clients that don't implement a web_search tool
+# (e.g. Claude Code) will reject it, which is why this is opt-in.
+WEB_SEARCH_ENABLED: bool = os.getenv("WEB_SEARCH_ENABLED", "false").lower() in ("true", "1", "yes")
 
 # ==================================================================================================
 # State Persistence Settings
