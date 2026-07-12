@@ -8,6 +8,7 @@ Tests for shared conversion logic used by both OpenAI and Anthropic adapters:
 - Tool processing
 - Thinking tag injection
 """
+import json
 import os
 import pytest
 from unittest.mock import patch
@@ -5046,3 +5047,90 @@ class TestBuildOpenCodePayloadWithThinkingConfig:
             )
         assert '<max_thinking_length>7000</max_thinking_length>' in content
         assert '<thinking_mode>enabled</thinking_mode>' in content
+
+
+class TestBuildOpenCodePayloadToolCallShapes:
+    """Tests for tool_call shape handling in the live payload builder."""
+
+    def _build(self, messages):
+        return build_opencode_payload(messages=messages, system_prompt='',
+            model_id='claude-sonnet-4-5', tools=None, conversation_id='c',
+            profile_arn='', thinking_config=ThinkingConfig())
+
+    def test_nested_tool_calls_preserve_name_and_arguments(self):
+        """
+        What it does: Builds a payload from tool_calls in the nested OpenAI shape
+        that both adapters emit ({"id", "type", "function": {...}}).
+        Purpose: Regression test — the builder previously read the flat shape and
+        silently sent every historical tool call upstream with name="" and
+        arguments="{}", corrupting tool-heavy conversations (e.g. Claude Code).
+        """
+        print('Setup: assistant message with a nested-shape tool call...')
+        messages = [
+            UnifiedMessage(role='user', content='read a file'),
+            UnifiedMessage(role='assistant', content='', tool_calls=[{
+                'id': 'call_42', 'type': 'function', 'function': {
+                'name': 'read_file', 'arguments': '{"path": "x.txt"}'}}]),
+        ]
+        print('Action: building payload...')
+        result = self._build(messages)
+        assistant_msg = result.payload['messages'][-1]
+        tc = assistant_msg['tool_calls'][0]
+        print(f'Comparing: tool_call={tc}')
+        assert tc['id'] == 'call_42'
+        assert tc['function']['name'] == 'read_file'
+        assert tc['function']['arguments'] == '{"path": "x.txt"}'
+
+    def test_nested_tool_calls_with_dict_arguments_are_serialized(self):
+        """
+        What it does: Serializes dict arguments (Anthropic tool_use input) to a JSON string.
+        Purpose: The Anthropic adapter passes input as a dict; upstream requires a string.
+        """
+        print('Setup: nested tool call with dict arguments...')
+        messages = [
+            UnifiedMessage(role='user', content='q'),
+            UnifiedMessage(role='assistant', content='', tool_calls=[{
+                'id': 'call_1', 'type': 'function', 'function': {
+                'name': 'search', 'arguments': {'q': 'cats'}}}]),
+        ]
+        print('Action: building payload...')
+        result = self._build(messages)
+        tc = result.payload['messages'][-1]['tool_calls'][0]
+        print(f'Comparing: arguments={tc["function"]["arguments"]!r}')
+        assert tc['function']['name'] == 'search'
+        assert json.loads(tc['function']['arguments']) == {'q': 'cats'}
+
+    def test_flat_tool_calls_still_supported(self):
+        """
+        What it does: Builds a payload from tool_calls in the legacy flat shape.
+        Purpose: Backward compatibility for callers passing {"id", "name", "arguments"}.
+        """
+        print('Setup: assistant message with a flat-shape tool call...')
+        messages = [
+            UnifiedMessage(role='user', content='q'),
+            UnifiedMessage(role='assistant', content='', tool_calls=[{
+                'id': 'call_2', 'name': 'legacy_tool', 'arguments': {'a': 1}}]),
+        ]
+        print('Action: building payload...')
+        result = self._build(messages)
+        tc = result.payload['messages'][-1]['tool_calls'][0]
+        print(f'Comparing: tool_call={tc}')
+        assert tc['function']['name'] == 'legacy_tool'
+        assert json.loads(tc['function']['arguments']) == {'a': 1}
+
+    def test_missing_arguments_default_to_empty_object(self):
+        """
+        What it does: Defaults missing/None arguments to the string "{}".
+        Purpose: Upstream requires arguments to be a JSON string, never null/empty.
+        """
+        print('Setup: tool call without arguments...')
+        messages = [
+            UnifiedMessage(role='user', content='q'),
+            UnifiedMessage(role='assistant', content='', tool_calls=[{
+                'id': 'call_3', 'type': 'function', 'function': {'name': 't'}}]),
+        ]
+        print('Action: building payload...')
+        result = self._build(messages)
+        tc = result.payload['messages'][-1]['tool_calls'][0]
+        print(f'Comparing: arguments={tc["function"]["arguments"]!r}')
+        assert tc['function']['arguments'] == '{}'

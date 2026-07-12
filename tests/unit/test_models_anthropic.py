@@ -1757,3 +1757,54 @@ class TestThinkingParameter:
         print(f"Comparing thinking: got={request.thinking}")
         assert request.thinking is not None
         assert request.thinking["type"] == "disabled"
+
+
+class TestUnknownContentBlockFallback:
+    """Tests for the Dict fallback in the ContentBlock union."""
+
+    def test_unknown_block_type_validates_as_dict(self):
+        """
+        What it does: Validates a message containing an unknown content block type.
+        Purpose: Newer clients (Claude Code) send block types this gateway does not
+        model (document, redacted_thinking, ...); they must validate as plain dicts
+        instead of failing the whole request with a 422.
+        """
+        print('Setup: message with an unknown "document" block...')
+        message = AnthropicMessage(role='user', content=[
+            {'type': 'text', 'text': 'look at this'},
+            {'type': 'document', 'source': {'type': 'text', 'data': 'contents'}},
+        ])
+        print(f'Comparing: content={message.content}')
+        assert message.content[0].type == 'text'
+        assert isinstance(message.content[1], dict)
+        assert message.content[1]['type'] == 'document'
+
+    def test_unknown_block_inside_tool_result_validates(self):
+        """
+        What it does: Validates a tool_result whose content list nests an unknown block type.
+        Purpose: Tool results can carry future block types; they must not 422.
+        """
+        print('Setup: tool_result with an unknown nested block...')
+        message = AnthropicMessage(role='user', content=[
+            {'type': 'tool_result', 'tool_use_id': 'toolu_1', 'content': [
+                {'type': 'text', 'text': 'ok'},
+                {'type': 'search_result', 'title': 'x', 'snippets': []},
+            ]},
+        ])
+        block = message.content[0]
+        print(f'Comparing: tool_result content={block}')
+        assert getattr(block, 'type', block.get('type') if isinstance(block, dict) else None) == 'tool_result'
+
+    def test_known_blocks_still_validate_as_models(self):
+        """
+        What it does: Verifies known block types still parse into their Pydantic models.
+        Purpose: The Dict fallback must be a last resort, not the default.
+        """
+        print('Setup: message with known block types...')
+        message = AnthropicMessage(role='assistant', content=[
+            {'type': 'text', 'text': 'hello'},
+            {'type': 'tool_use', 'id': 'toolu_1', 'name': 't', 'input': {}},
+        ])
+        print(f'Comparing: block types={[type(b).__name__ for b in message.content]}')
+        assert isinstance(message.content[0], TextContentBlock)
+        assert isinstance(message.content[1], ToolUseContentBlock)

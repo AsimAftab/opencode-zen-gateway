@@ -33,13 +33,37 @@ from opencode_zen.models_openai import (
 )
 from opencode_zen.converters_openai import build_opencode_payload
 from opencode_zen.http_client import OpenCodeHttpClient
+from opencode_zen.sse_aggregator import aggregate_openai_sse, build_openai_completion
 from opencode_zen.utils import generate_conversation_id
-from opencode_zen.mcp_tools import handle_native_web_search
 
 try:
     from opencode_zen.debug_logger import debug_logger
 except ImportError:
     debug_logger = None
+
+
+def _extract_upstream_error(response: httpx.Response) -> dict:
+    """
+    Extracts a clean OpenAI-shaped error dict from an upstream error response.
+
+    OpenCode Zen returns Anthropic-shaped error bodies
+    ({"type": "error", "error": {"type": ..., "message": ...}}); other
+    upstream layers may return OpenAI-shaped ones ({"error": {...}}) or
+    plain text. All are surfaced as {"type", "message"} so clients show the
+    real upstream message instead of a stringified wrapper.
+    """
+    try:
+        error_data = response.json()
+    except ValueError:
+        return {"type": "api_error", "message": response.text or f"Upstream error (HTTP {response.status_code})"}
+
+    inner = error_data.get("error") if isinstance(error_data, dict) else None
+    if isinstance(inner, dict) and inner.get("message"):
+        return {"type": inner.get("type", "api_error"), "message": inner["message"]}
+    if isinstance(inner, str):
+        return {"type": "api_error", "message": inner}
+    return {"type": "api_error", "message": json.dumps(error_data, ensure_ascii=False)}
+
 
 api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
 
@@ -133,14 +157,17 @@ async def chat_completions(request: Request, request_data: ChatCompletionRequest
     request_data.messages = modified_messages
 
     if WEB_SEARCH_ENABLED:
+        # Opt-in emulation: offer a web_search function tool so the model can
+        # request searches. The tool call is returned to the client like any
+        # other function call — the request is NEVER diverted away from the LLM.
         if request_data.tools is None:
             request_data.tools = []
         has_ws = any(getattr(tool.function, "name", "") == "web_search" for tool in request_data.tools if getattr(tool, "function", None))
         if not has_ws:
-            from opencode_zen.models_openai import OpenAITool, OpenAIFunction
-            web_search_tool = OpenAITool(
+            from opencode_zen.models_openai import Tool, ToolFunction
+            web_search_tool = Tool(
                 type="function",
-                function=OpenAIFunction(
+                function=ToolFunction(
                     name="web_search",
                     description="Search the web for current information.",
                     parameters={
@@ -151,11 +178,6 @@ async def chat_completions(request: Request, request_data: ChatCompletionRequest
                 )
             )
             request_data.tools.append(web_search_tool)
-
-    if request_data.tools:
-        for tool in request_data.tools:
-            if getattr(tool.function, "name", "") == "web_search":
-                return await handle_native_web_search(request, request_data, None, api_format="openai")
 
     conversation_id = generate_conversation_id()
     try:
@@ -172,39 +194,46 @@ async def chat_completions(request: Request, request_data: ChatCompletionRequest
 
     try:
         response = await http_client.request_with_retry("POST", url, opencode_payload, stream=True)
-        
+
         if response.status_code == 200:
             if request_data.stream:
                 async def stream_wrapper():
                     try:
-                        async for line in response.aiter_lines():
-                            if line:
-                                yield f"{line}\n"
+                        # Verbatim byte passthrough: the upstream is already
+                        # OpenAI-shaped SSE, and re-yielding raw bytes preserves
+                        # the blank-line event framing SSE parsers require.
+                        async for raw_chunk in response.aiter_raw():
+                            yield raw_chunk
+                    except Exception as e:
+                        logger.error(f"Streaming error: {e}")
+                        error_payload = {"error": {"type": "api_error", "message": f"Stream interrupted: {str(e)}"}}
+                        yield f"data: {json.dumps(error_payload, ensure_ascii=False)}\n\n".encode("utf-8")
                     finally:
                         if http_client._owns_client:
                             await http_client.close()
                 return StreamingResponse(stream_wrapper(), media_type="text/event-stream")
             else:
+                # Upstream is always streamed; aggregate SSE into a complete
+                # chat.completion response for non-streaming clients.
                 try:
-                    await response.aread()
-                    return Response(content=response.content, media_type="application/json")
+                    aggregated = await aggregate_openai_sse(response)
+                    return JSONResponse(content=build_openai_completion(aggregated, request_data.model))
                 finally:
                     if http_client._owns_client:
                         await http_client.close()
         else:
             await response.aread()
-            try:
-                error_data = response.json()
-            except ValueError:
-                error_data = {"error": {"message": response.text}}
-                
             if http_client._owns_client:
                 await http_client.close()
-                
+
             return JSONResponse(
                 status_code=response.status_code,
-                content={"error": {"type": "api_error", "message": f"OpenCode API error: {error_data}"}}
+                content={"error": _extract_upstream_error(response)}
             )
+    except HTTPException:
+        if http_client._owns_client:
+            await http_client.close()
+        raise
     except Exception as e:
         logger.error(f"Request failed: {e}")
         if http_client._owns_client:
