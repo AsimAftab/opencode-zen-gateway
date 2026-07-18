@@ -104,6 +104,40 @@ class TestNormalizeModelName:
         print(f"Comparing result: Expected 'claude-haiku-4-5', Got '{result}'")
         assert result == "claude-haiku-4-5"
 
+    def test_strips_effort_suffix_on_dash_form(self):
+        """
+        What it does: claude-opus-4-5-high → claude-opus-4-5
+        Goal: Claude Code appends reasoning-effort suffixes on the standard dash
+        form; they must be stripped or the upstream 400s on the unknown ID.
+        """
+        print("Action: Normalizing 'claude-opus-4-5-high'...")
+        result = normalize_model_name("claude-opus-4-5-high")
+
+        print(f"Comparing result: Expected 'claude-opus-4-5', Got '{result}'")
+        assert result == "claude-opus-4-5"
+
+    def test_strips_effort_suffix_without_minor(self):
+        """
+        What it does: claude-sonnet-4-high → claude-sonnet-4
+        Goal: Effort suffix stripped even when there is no minor version.
+        """
+        print("Action: Normalizing 'claude-sonnet-4-high'...")
+        result = normalize_model_name("claude-sonnet-4-high")
+
+        print(f"Comparing result: Expected 'claude-sonnet-4', Got '{result}'")
+        assert result == "claude-sonnet-4"
+
+    def test_date_suffix_still_stripped_not_read_as_minor(self):
+        """
+        What it does: claude-sonnet-4-20250514 → claude-sonnet-4
+        Goal: The added alpha-suffix branch must not regress 8-digit date handling.
+        """
+        print("Action: Normalizing 'claude-sonnet-4-20250514'...")
+        result = normalize_model_name("claude-sonnet-4-20250514")
+
+        print(f"Comparing result: Expected 'claude-sonnet-4', Got '{result}'")
+        assert result == "claude-sonnet-4"
+
     def test_keeps_sonnet_dash_form(self):
         """
         What it does: claude-sonnet-4-5 → claude-sonnet-4-5

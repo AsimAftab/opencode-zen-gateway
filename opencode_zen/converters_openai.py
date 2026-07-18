@@ -390,6 +390,31 @@ def extract_thinking_config_from_openai(request: ChatCompletionRequest) -> Think
 # Main Entry Point
 # ==================================================================================================
 
+def build_openai_generation_params(request_data: ChatCompletionRequest) -> Dict[str, Any]:
+    """
+    Builds the sampling parameters to forward upstream from an OpenAI request.
+
+    OpenAI request fields are already in the upstream's shape, so this is a
+    straight pass-through. max_tokens falls back to max_completion_tokens.
+    None values are left in place; the core builder drops them.
+
+    Args:
+        request_data: OpenAI ChatCompletionRequest.
+
+    Returns:
+        Dict of OpenAI-shaped generation parameters.
+    """
+    return {
+        "max_tokens": request_data.max_tokens or request_data.max_completion_tokens,
+        "temperature": request_data.temperature,
+        "top_p": request_data.top_p,
+        "stop": request_data.stop,
+        "tool_choice": request_data.tool_choice,
+        "presence_penalty": request_data.presence_penalty,
+        "frequency_penalty": request_data.frequency_penalty,
+    }
+
+
 def build_opencode_payload(
     request_data: ChatCompletionRequest,
     conversation_id: str,
@@ -432,6 +457,9 @@ def build_opencode_payload(
         f"thinking_enabled={thinking_config.enabled}, thinking_budget={thinking_config.budget_tokens}"
     )
     
+    # Map client sampling parameters to the upstream (already OpenAI-shaped)
+    generation_params = build_openai_generation_params(request_data)
+
     # Use core function to build payload
     result = core_build_opencode_payload(
         messages=unified_messages,
@@ -440,7 +468,8 @@ def build_opencode_payload(
         tools=unified_tools,
         conversation_id=conversation_id,
         profile_arn=profile_arn,
-        thinking_config=thinking_config
+        thinking_config=thinking_config,
+        generation_params=generation_params,
     )
-    
+
     return result.payload

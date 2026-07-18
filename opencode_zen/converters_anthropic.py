@@ -134,15 +134,18 @@ def extract_tool_results_from_anthropic_content(content: Any) -> List[Dict[str, 
         block_type = None
         tool_use_id = None
         result_content = ""
+        is_error = None
 
         if isinstance(block, dict):
             block_type = block.get("type")
             tool_use_id = block.get("tool_use_id")
             result_content = block.get("content", "")
+            is_error = block.get("is_error")
         elif hasattr(block, "type"):
             block_type = block.type
             tool_use_id = getattr(block, "tool_use_id", None)
             result_content = getattr(block, "content", "")
+            is_error = getattr(block, "is_error", None)
 
         if block_type == "tool_result" and tool_use_id:
             # Convert content to text if it's a list
@@ -156,6 +159,9 @@ def extract_tool_results_from_anthropic_content(content: Any) -> List[Dict[str, 
                     "type": "tool_result",
                     "tool_use_id": tool_use_id,
                     "content": result_content or "(empty result)",
+                    # Preserve the failure flag so the core builder can mark the
+                    # tool message — the OpenAI wire format has no is_error field.
+                    "is_error": bool(is_error) if is_error is not None else None,
                 }
             )
 
@@ -424,6 +430,71 @@ def extract_thinking_config_from_anthropic(request: AnthropicMessagesRequest) ->
     return ThinkingConfig(enabled=True, budget_tokens=None)
 
 
+def map_anthropic_tool_choice_to_openai(tool_choice: Any) -> Optional[Any]:
+    """
+    Maps an Anthropic tool_choice to the OpenAI-shaped upstream equivalent.
+
+    Anthropic tool_choice may arrive as a Pydantic model (ToolChoiceAuto /
+    ToolChoiceAny / ToolChoiceTool) or as a raw dict (forward-compat fallback).
+
+    Mapping:
+    - {"type": "auto"}          → "auto"
+    - {"type": "any"}           → "required"   (model must call a tool)
+    - {"type": "tool", "name"}  → {"type": "function", "function": {"name": ...}}
+    - {"type": "none"}          → "none"
+
+    Args:
+        tool_choice: Anthropic tool_choice (model or dict), or None.
+
+    Returns:
+        OpenAI-shaped tool_choice, or None if there is nothing to forward.
+    """
+    if tool_choice is None:
+        return None
+
+    if isinstance(tool_choice, dict):
+        choice_type = tool_choice.get("type")
+        tool_name = tool_choice.get("name")
+    else:
+        choice_type = getattr(tool_choice, "type", None)
+        tool_name = getattr(tool_choice, "name", None)
+
+    if choice_type == "auto":
+        return "auto"
+    if choice_type == "any":
+        return "required"
+    if choice_type == "none":
+        return "none"
+    if choice_type == "tool" and tool_name:
+        return {"type": "function", "function": {"name": tool_name}}
+
+    logger.debug(f"Unrecognized tool_choice, omitting: {tool_choice}")
+    return None
+
+
+def build_anthropic_generation_params(request: AnthropicMessagesRequest) -> Dict[str, Any]:
+    """
+    Builds the OpenAI-shaped sampling parameters to forward upstream.
+
+    Only maps parameters the OpenAI-shaped upstream understands. Anthropic
+    top_k has no OpenAI chat-completions equivalent and is intentionally
+    omitted. None values are left in place; the core builder drops them.
+
+    Args:
+        request: Anthropic MessagesRequest.
+
+    Returns:
+        Dict of OpenAI-shaped generation parameters.
+    """
+    return {
+        "max_tokens": request.max_tokens,
+        "temperature": request.temperature,
+        "top_p": request.top_p,
+        "stop": request.stop_sequences or None,
+        "tool_choice": map_anthropic_tool_choice_to_openai(request.tool_choice),
+    }
+
+
 def anthropic_to_opencode(
     request: AnthropicMessagesRequest, conversation_id: str, profile_arn: str
 ) -> dict:
@@ -472,6 +543,9 @@ def anthropic_to_opencode(
         f"thinking_enabled={thinking_config.enabled}, thinking_budget={thinking_config.budget_tokens}"
     )
 
+    # Map client sampling parameters to the OpenAI-shaped upstream
+    generation_params = build_anthropic_generation_params(request)
+
     # Use core function to build payload
     result = build_opencode_payload(
         messages=unified_messages,
@@ -481,6 +555,7 @@ def anthropic_to_opencode(
         conversation_id=conversation_id,
         profile_arn=profile_arn,
         thinking_config=thinking_config,
+        generation_params=generation_params,
     )
 
     return result.payload

@@ -51,14 +51,19 @@ def _estimate_input_tokens(
     request_tools: Optional[list],
     request_system: Optional[Any],
 ) -> int:
-    """Estimates input tokens for the usage block of message_start."""
+    """Estimates input tokens for the usage block of message_start.
+
+    Applies the Claude correction factor so this estimate matches what
+    /v1/messages/count_tokens reports for the identical request — Claude Code
+    mixes the two when tracking context, and a mismatch skews auto-compaction.
+    """
     if not (request_messages or request_tools or request_system):
         return 0
     stats = estimate_request_tokens(
         messages=request_messages or [],
         tools=request_tools,
         system_prompt=request_system,
-        apply_claude_correction=False,
+        apply_claude_correction=True,
     )
     return stats["total_tokens"]
 
@@ -130,6 +135,11 @@ async def stream_openai_to_anthropic(
     accumulated_text = ""
     finish_reason: Optional[str] = None
     output_tokens = 0
+    emitted_tool_use = False
+    # Maps an upstream OpenAI tool-call index to the Anthropic block it opened,
+    # so repeated fragments of the same call append to one block instead of
+    # each opening a new one.
+    seen_tool_indexes: Dict[int, int] = {}
 
     def close_block() -> Optional[str]:
         nonlocal current_block
@@ -205,34 +215,30 @@ async def stream_openai_to_anthropic(
                 "delta": {"type": "text_delta", "text": delta["content"]}
             })
 
-        # Tool calls
+        # Tool calls. OpenAI streams identify concurrent/sequential calls by
+        # "index"; a new index (not the mere presence of an id, which some
+        # upstreams repeat on every fragment) starts a new Anthropic block.
         for tc in delta.get("tool_calls") or []:
-            # A new id means a new tool call: close whatever block is open
-            if tc.get("id"):
+            tc_index = tc.get("index", 0)
+            function = tc.get("function") or {}
+
+            if tc_index not in seen_tool_indexes:
                 stop_event = close_block()
                 if stop_event:
                     yield stop_event
-                tool_name = (tc.get("function") or {}).get("name", "unknown")
+                tool_id = tc.get("id") or f"call_{uuid.uuid4().hex[:24]}"
+                tool_name = function.get("name", "unknown")
                 yield open_block("tool_use", {
                     "type": "tool_use",
-                    "id": tc["id"],
+                    "id": tool_id,
                     "name": tool_name,
                     "input": {}
                 })
+                seen_tool_indexes[tc_index] = block_index
+                emitted_tool_use = True
 
-            arguments = (tc.get("function") or {}).get("arguments")
+            arguments = function.get("arguments")
             if arguments:
-                if current_block != "tool_use":
-                    # Defensive: arguments without a preceding id chunk
-                    stop_event = close_block()
-                    if stop_event:
-                        yield stop_event
-                    yield open_block("tool_use", {
-                        "type": "tool_use",
-                        "id": f"call_{uuid.uuid4().hex[:24]}",
-                        "name": (tc.get("function") or {}).get("name", "unknown"),
-                        "input": {}
-                    })
                 accumulated_text += arguments
                 yield format_sse_event("content_block_delta", {
                     "type": "content_block_delta",
@@ -250,12 +256,19 @@ async def stream_openai_to_anthropic(
         yield stop_event
 
     if not output_tokens and accumulated_text:
-        output_tokens = count_tokens(accumulated_text, apply_claude_correction=False)
+        output_tokens = count_tokens(accumulated_text, apply_claude_correction=True)
+
+    # If the upstream emitted tool calls but died before sending a
+    # finish_reason, report tool_use — otherwise the client sees end_turn and
+    # never executes the tools (mirrors collect_anthropic_response).
+    stop_reason = map_finish_reason_to_stop_reason(finish_reason)
+    if finish_reason is None and emitted_tool_use:
+        stop_reason = "tool_use"
 
     yield format_sse_event("message_delta", {
         "type": "message_delta",
         "delta": {
-            "stop_reason": map_finish_reason_to_stop_reason(finish_reason),
+            "stop_reason": stop_reason,
             "stop_sequence": None
         },
         "usage": {"output_tokens": output_tokens}
@@ -302,7 +315,7 @@ async def collect_anthropic_response(
             tc["function"]["arguments"] for tc in aggregated.tool_calls
         )
         if generated:
-            output_tokens = count_tokens(generated, apply_claude_correction=False)
+            output_tokens = count_tokens(generated, apply_claude_correction=True)
 
     content_blocks = []
     if aggregated.reasoning_content:
@@ -315,13 +328,22 @@ async def collect_anthropic_response(
         content_blocks.append({"type": "text", "text": aggregated.content})
 
     for tc in aggregated.tool_calls:
+        raw_arguments = tc["function"]["arguments"]
         try:
-            tool_input = json.loads(tc["function"]["arguments"])
-        except json.JSONDecodeError:
-            logger.warning(
-                f"Tool call {tc['id']} has non-JSON arguments; substituting empty input"
+            tool_input = json.loads(raw_arguments)
+        except json.JSONDecodeError as exc:
+            # The upstream silently truncates large tool-call arguments, leaving
+            # invalid JSON. Returning input={} would make the client execute the
+            # tool with no arguments as if that were intended — worse than an
+            # error. Surface it so the caller returns a visible failure instead.
+            logger.error(
+                f"Tool call {tc['id']} has truncated/invalid JSON arguments "
+                f"({len(raw_arguments)} chars); cannot build a valid tool_use block"
             )
-            tool_input = {}
+            raise ValueError(
+                f"Upstream returned truncated or invalid tool-call arguments "
+                f"for tool '{tc['function']['name']}'"
+            ) from exc
         content_blocks.append({
             "type": "tool_use",
             "id": tc["id"],

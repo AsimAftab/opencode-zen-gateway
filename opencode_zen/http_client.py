@@ -222,8 +222,12 @@ class OpenCodeHttpClient:
                     request_kwargs["params"] = params
                 
                 if stream:
-                    # Prevent CLOSE_WAIT connection leak (issue #38)
-                    headers["Connection"] = "close"
+                    # Force Connection: close only on our own throwaway client
+                    # to prevent the CLOSE_WAIT leak (issue #38). The shared
+                    # pooled client (non-streaming clients) must keep connections
+                    # alive, or the keepalive pool never pools.
+                    if self._owns_client:
+                        headers["Connection"] = "close"
                     req = client.build_request(method, url, **request_kwargs)
                     logger.debug("Sending request to OpenCode API...")
                     response = await client.send(req, stream=True)
@@ -233,32 +237,41 @@ class OpenCodeHttpClient:
                 
                 # Check status
                 if response.status_code == 200:
+                    # A prior retryable response (429/5xx) is now superseded.
+                    if last_response is not None:
+                        await last_response.aclose()
                     return response
-                
+
                 # 401/403 - unauthorized
                 if response.status_code in (401, 403):
                     logger.error(f"Authentication failed (HTTP {response.status_code}). Check OPENCODE_API_KEY.")
+                    if last_response is not None:
+                        await last_response.aclose()
                     return response
                 
-                # 429 - rate limit, wait and retry
-                if response.status_code == 429:
-                    last_response = response  # Сохраняем для возврата после exhaustion
-                    delay = BASE_RETRY_DELAY * (2 ** attempt)
-                    logger.warning(f"Received 429, waiting {delay}s (attempt {attempt + 1}/{max_retries})")
-                    await asyncio.sleep(delay)
+                # 429 (rate limit) or 5xx (server error): retry with backoff.
+                if response.status_code == 429 or 500 <= response.status_code < 600:
+                    # Release the previously-saved retry response before
+                    # overwriting it — each retry opens a new streamed response,
+                    # and the intermediate ones would otherwise leak connections.
+                    if last_response is not None:
+                        await last_response.aclose()
+                    last_response = response  # keep the latest for the caller
+                    # Don't sleep after the final attempt: we return immediately.
+                    if attempt < max_retries - 1:
+                        delay = BASE_RETRY_DELAY * (2 ** attempt)
+                        logger.warning(
+                            f"Received {response.status_code}, waiting {delay}s "
+                            f"(attempt {attempt + 1}/{max_retries})"
+                        )
+                        await asyncio.sleep(delay)
                     continue
-                
-                # 5xx - server error, wait and retry
-                if 500 <= response.status_code < 600:
-                    last_response = response  # Сохраняем для возврата после exhaustion
-                    delay = BASE_RETRY_DELAY * (2 ** attempt)
-                    logger.warning(f"Received {response.status_code}, waiting {delay}s (attempt {attempt + 1}/{max_retries})")
-                    await asyncio.sleep(delay)
-                    continue
-                
+
                 # Other errors - return as is
+                if last_response is not None:
+                    await last_response.aclose()
                 return response
-                
+
             except httpx.TimeoutException as e:
                 last_error = e
                 

@@ -1443,23 +1443,48 @@ def build_opencode_payload(
     tools: Optional[List[UnifiedTool]],
     conversation_id: str,
     profile_arn: str,
-    thinking_config: ThinkingConfig
+    thinking_config: ThinkingConfig,
+    generation_params: Optional[Dict[str, Any]] = None,
 ) -> OpenCodePayloadResult:
     """
     Builds OpenAI API payload from unified data (named build_opencode_payload for compatibility).
+
+    Args:
+        messages: Conversation in the unified internal format.
+        system_prompt: System prompt text (already extracted from the dialect).
+        model_id: Upstream model ID (already normalized to dash form).
+        tools: Unified tool definitions, or None.
+        conversation_id: Unique conversation ID (legacy signature compatibility).
+        profile_arn: Legacy signature compatibility; unused.
+        thinking_config: Thinking configuration (unused by the live upstream).
+        generation_params: Optional OpenAI-shaped sampling parameters
+            (``max_tokens``, ``temperature``, ``top_p``, ``stop``,
+            ``tool_choice``) to forward to the upstream. Keys whose value is
+            ``None`` are dropped. ``tool_choice`` is dropped when the final
+            payload carries no tools, since the upstream 400s on a tool_choice
+            without tools.
+
+    Returns:
+        OpenCodePayloadResult with the upstream payload and any tool documentation.
     """
     openai_messages = []
-    
+
+    # Convert orphaned tool_results (no preceding assistant tool_calls) to text.
+    # OpenAI-shaped upstreams 400 on a 'tool' role message that does not follow
+    # an assistant 'tool_calls' message — a shape clients produce after context
+    # compaction truncates the assistant turn away.
+    messages, _ = ensure_assistant_before_tool_results(messages)
+
     # Process tools with long descriptions
     processed_tools, tool_documentation = process_tools_with_long_descriptions(tools)
-    
+
     full_system_prompt = system_prompt
     if tool_documentation:
         full_system_prompt = full_system_prompt + tool_documentation if full_system_prompt else tool_documentation.strip()
-        
+
     if full_system_prompt:
         openai_messages.append({"role": "system", "content": full_system_prompt})
-        
+
     for msg in messages:
         msg_dict = {"role": msg.role}
         
@@ -1486,10 +1511,16 @@ def build_opencode_payload(
             # follow the assistant message carrying the tool_calls, so they are
             # appended BEFORE this user message's own content.
             for tr in msg.tool_results:
+                tool_content = str(extract_text_content(tr.get("content", "")))
+                # The OpenAI wire format has no per-result error flag, so a
+                # failed tool_result (Anthropic is_error=true) is marked inline
+                # — otherwise the model cannot tell a failure from a success.
+                if tr.get("is_error"):
+                    tool_content = f"[Tool execution error]\n{tool_content}"
                 openai_messages.append({
                     "role": "tool",
                     "tool_call_id": tr.get("tool_use_id", "call_1"),
-                    "content": str(extract_text_content(tr.get("content", "")))
+                    "content": tool_content
                 })
             # Skip appending the original user message since we broke it down
             if msg.role == "user" and not msg_dict.get("content"):
@@ -1515,7 +1546,19 @@ def build_opencode_payload(
             }
             for t in processed_tools
         ]
-        
+
+    # Forward client generation parameters (already mapped to OpenAI shape by
+    # the dialect adapter). Only non-None values are sent, and tool_choice is
+    # dropped when the payload carries no tools (the upstream 400s otherwise).
+    if generation_params:
+        for key, value in generation_params.items():
+            if value is None:
+                continue
+            if key == "tool_choice" and "tools" not in payload:
+                logger.debug("Dropping tool_choice: no tools in payload")
+                continue
+            payload[key] = value
+
     return OpenCodePayloadResult(payload=payload, tool_documentation=tool_documentation)
 
 def build_openai_payload(

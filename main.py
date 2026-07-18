@@ -78,8 +78,9 @@ from opencode_zen.cache import ModelInfoCache
 from opencode_zen.model_resolver import ModelResolver
 from opencode_zen.routes_openai import router as openai_router
 from opencode_zen.routes_anthropic import router as anthropic_router
-from opencode_zen.exceptions import validation_exception_handler
+from opencode_zen.exceptions import validation_exception_handler, http_exception_handler
 from opencode_zen.debug_middleware import DebugLoggerMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
 # --- Loguru Configuration ---
@@ -275,8 +276,13 @@ app.add_middleware(
 app.add_middleware(DebugLoggerMiddleware)
 
 
-# --- Validation Error Handler Registration ---
+# --- Exception Handler Registration ---
+# Pydantic validation errors (422 → Anthropic-shaped 400 for /v1/messages).
 app.add_exception_handler(RequestValidationError, validation_exception_handler)
+# HTTPExceptions reshaped into the dialect of the endpoint that raised them,
+# so gateway-originated errors (401 auth, 502/504 transport) reach Claude Code
+# and OpenAI clients in an envelope they can parse.
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
 
 
 # --- Route Registration ---

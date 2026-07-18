@@ -17,7 +17,6 @@ from opencode_zen.config import PROXY_API_KEY, OPENCODE_BASE_URL, WEB_SEARCH_ENA
 from opencode_zen.models_anthropic import (
     AnthropicMessagesRequest,
     AnthropicCountTokensRequest,
-    AnthropicMessage,
 )
 from opencode_zen.converters_anthropic import anthropic_to_opencode
 from opencode_zen.streaming_anthropic import (
@@ -34,6 +33,24 @@ try:
     from opencode_zen.debug_logger import debug_logger
 except ImportError:
     debug_logger = None
+
+
+def _debug_flush(status_code: int, message: str = "") -> None:
+    """Flush buffered debug logs on error (no-op unless DEBUG_MODE captures errors)."""
+    if debug_logger:
+        try:
+            debug_logger.flush_on_error(status_code, message)
+        except Exception as exc:  # never let debug logging break the response
+            logger.debug(f"debug flush failed: {exc}")
+
+
+def _debug_discard() -> None:
+    """Discard buffered debug logs after a successful request."""
+    if debug_logger:
+        try:
+            debug_logger.discard_buffers()
+        except Exception as exc:
+            logger.debug(f"debug discard failed: {exc}")
 
 
 def _extract_upstream_error_anthropic(response: httpx.Response) -> dict:
@@ -94,78 +111,8 @@ async def messages(
     anthropic_version: Optional[str] = Header(None, alias="anthropic-version")
 ):
     logger.info(f"Request to /v1/messages (model={request_data.model}, stream={request_data.stream})")
-    
-    # 1. Truncation Recovery
-    from opencode_zen.truncation_state import get_tool_truncation, get_content_truncation
-    from opencode_zen.truncation_recovery import generate_truncation_tool_result, generate_truncation_user_message
-    
-    modified_messages = []
-    for msg in request_data.messages:
-        if msg.role == "user" and msg.content and isinstance(msg.content, list):
-            modified_content_blocks = []
-            has_modifications = False
-            for block in msg.content:
-                if isinstance(block, dict):
-                    block_type = block.get("type")
-                    tool_use_id = block.get("tool_use_id")
-                    original_content = block.get("content", "")
-                elif hasattr(block, "type"):
-                    block_type = block.type
-                    tool_use_id = getattr(block, "tool_use_id", None)
-                    original_content = getattr(block, "content", "")
-                else:
-                    modified_content_blocks.append(block)
-                    continue
-                
-                if block_type == "tool_result" and tool_use_id:
-                    truncation_info = get_tool_truncation(tool_use_id)
-                    if truncation_info:
-                        synthetic = generate_truncation_tool_result(
-                            tool_name=truncation_info.tool_name,
-                            tool_use_id=tool_use_id,
-                            truncation_info=truncation_info.truncation_info
-                        )
-                        modified_content = f"{synthetic['content']}\n\n---\n\nOriginal tool result:\n{original_content}"
-                        if isinstance(block, dict):
-                            modified_block = block.copy()
-                            modified_block["content"] = modified_content
-                        else:
-                            modified_block = block.model_copy(update={"content": modified_content})
-                        modified_content_blocks.append(modified_block)
-                        has_modifications = True
-                        continue
-                modified_content_blocks.append(block)
-            
-            if has_modifications:
-                modified_msg = msg.model_copy(update={"content": modified_content_blocks})
-                modified_messages.append(modified_msg)
-                continue
-        
-        if msg.role == "assistant" and msg.content:
-            text_content = ""
-            if isinstance(msg.content, str):
-                text_content = msg.content
-            elif isinstance(msg.content, list):
-                for block in msg.content:
-                    if isinstance(block, dict) and block.get("type") == "text":
-                        text_content += block.get("text", "")
-            
-            if text_content:
-                truncation_info = get_content_truncation(text_content)
-                if truncation_info:
-                    modified_messages.append(msg)
-                    synthetic_user_msg = AnthropicMessage(
-                        role="user",
-                        content=[{"type": "text", "text": generate_truncation_user_message()}]
-                    )
-                    modified_messages.append(synthetic_user_msg)
-                    continue
-        
-        modified_messages.append(msg)
-    
-    request_data.messages = modified_messages
 
-    # 2. Tool list hygiene
+    # 1. Tool list hygiene
     # Server-side tools (e.g. Claude Code's web_search_20250305) have no
     # input_schema and cannot be executed by the upstream — strip them instead
     # of failing or diverting the request, so the rest of the request works.
@@ -183,7 +130,7 @@ async def messages(
             executable_tools.append(tool)
         request_data.tools = executable_tools or None
 
-    # 3. Web Search emulation (opt-in via WEB_SEARCH_ENABLED)
+    # 2. Web Search emulation (opt-in via WEB_SEARCH_ENABLED)
     # Offers a web_search function tool; the model's tool call is returned to
     # the client like any other function call — the request is never diverted.
     if WEB_SEARCH_ENABLED:
@@ -203,7 +150,7 @@ async def messages(
             )
             request_data.tools.append(web_search_tool)
 
-    # 4. Build Payload
+    # 3. Build Payload
     conversation_id = generate_conversation_id()
     try:
         # anthropic_to_opencode now returns OpenAI payload
@@ -247,10 +194,12 @@ async def messages(
                             request_system=system_for_tokenizer,
                         ):
                             yield chunk
+                        _debug_discard()
                     except Exception as e:
                         # Surface mid-stream failures as an Anthropic error
                         # event instead of silently truncating the stream.
                         logger.error(f"Streaming error: {e}")
+                        _debug_flush(502, f"Streaming error: {e}")
                         yield format_sse_event("error", {
                             "type": "error",
                             "error": {"type": "api_error", "message": f"Stream interrupted: {str(e)}"}
@@ -266,18 +215,38 @@ async def messages(
                         response, request_data.model, None, None,
                         request_messages=messages_for_tokenizer, request_tools=tools_for_tokenizer, request_system=system_for_tokenizer
                     )
+                    _debug_discard()
                     return JSONResponse(content=anthropic_resp)
+                except ValueError as e:
+                    # e.g. upstream returned truncated/invalid tool-call JSON
+                    logger.error(f"Response aggregation failed: {e}")
+                    _debug_flush(502, f"Response aggregation failed: {e}")
+                    return JSONResponse(
+                        status_code=502,
+                        content={"type": "error", "error": {"type": "api_error", "message": str(e)}}
+                    )
                 finally:
+                    # The upstream is streamed even for non-streaming clients;
+                    # aggregation breaks on [DONE] without exhausting the body,
+                    # so close the response to release the pooled connection.
+                    await response.aclose()
                     if http_client._owns_client:
                         await http_client.close()
         else:
+            # Capture retry-after before reading the body so a 429 can pass the
+            # upstream's backoff hint through to the client.
+            retry_after = response.headers.get("retry-after")
             await response.aread()
+            await response.aclose()
             if http_client._owns_client:
                 await http_client.close()
 
+            _debug_flush(response.status_code, "Upstream returned an error status")
+            error_headers = {"retry-after": retry_after} if retry_after else None
             return JSONResponse(
                 status_code=response.status_code,
-                content=_extract_upstream_error_anthropic(response)
+                content=_extract_upstream_error_anthropic(response),
+                headers=error_headers,
             )
 
     except HTTPException:
@@ -286,6 +255,7 @@ async def messages(
         raise
     except Exception as e:
         logger.error(f"Request failed: {e}")
+        _debug_flush(502, f"Request failed: {e}")
         if http_client._owns_client:
             await http_client.close()
         return JSONResponse(

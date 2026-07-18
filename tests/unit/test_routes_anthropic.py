@@ -202,7 +202,7 @@ class TestMessagesValidation:
             valid_proxy_api_key}, json={'max_tokens': 1024, 'messages': [{
             'role': 'user', 'content': 'Hello'}]})
         print(f'Status: {response.status_code}')
-        assert response.status_code == 422
+        assert response.status_code == 400
 
     def test_validates_missing_max_tokens(self, test_client,
         valid_proxy_api_key):
@@ -215,7 +215,7 @@ class TestMessagesValidation:
             valid_proxy_api_key}, json={'model': 'claude-sonnet-4-5',
             'messages': [{'role': 'user', 'content': 'Hello'}]})
         print(f'Status: {response.status_code}')
-        assert response.status_code == 422
+        assert response.status_code == 400
 
     def test_validates_missing_messages(self, test_client, valid_proxy_api_key
         ):
@@ -228,7 +228,7 @@ class TestMessagesValidation:
             valid_proxy_api_key}, json={'model': 'claude-sonnet-4-5',
             'max_tokens': 1024})
         print(f'Status: {response.status_code}')
-        assert response.status_code == 422
+        assert response.status_code == 400
 
     def test_validates_empty_messages_array(self, test_client,
         valid_proxy_api_key):
@@ -241,7 +241,7 @@ class TestMessagesValidation:
             valid_proxy_api_key}, json={'model': 'claude-sonnet-4-5',
             'max_tokens': 1024, 'messages': []})
         print(f'Status: {response.status_code}')
-        assert response.status_code == 422
+        assert response.status_code == 400
 
     def test_validates_invalid_json(self, test_client, valid_proxy_api_key):
         """
@@ -253,7 +253,7 @@ class TestMessagesValidation:
             valid_proxy_api_key, 'Content-Type': 'application/json'},
             content=b'not valid json {{{}')
         print(f'Status: {response.status_code}')
-        assert response.status_code == 422
+        assert response.status_code == 400
 
     def test_validates_invalid_role(self, test_client, valid_proxy_api_key):
         """
@@ -266,7 +266,7 @@ class TestMessagesValidation:
             'max_tokens': 1024, 'messages': [{'role': 'invalid_role',
             'content': 'Hello'}]})
         print(f'Status: {response.status_code}')
-        assert response.status_code == 422
+        assert response.status_code == 400
 
     def test_accepts_valid_request_format(self, test_client,
         valid_proxy_api_key):
@@ -646,7 +646,12 @@ class TestMessagesErrorFormat:
             valid_proxy_api_key}, json={'model': 'claude-sonnet-4-5'})
         print(f'Status: {response.status_code}')
         print(f'Response: {response.json()}')
-        assert response.status_code == 422
+        # Claude Code expects a 400 with the Anthropic error envelope, not a 422.
+        assert response.status_code == 400
+        data = response.json()
+        assert data['type'] == 'error'
+        assert data['error']['type'] == 'invalid_request_error'
+        assert 'message' in data['error']
 
     def test_auth_error_format_is_anthropic_style(self, test_client):
         """
@@ -661,10 +666,10 @@ class TestMessagesErrorFormat:
         print(f'Response: {response.json()}')
         assert response.status_code == 401
         data = response.json()
-        assert 'detail' in data
-        detail = data['detail']
-        assert 'type' in detail
-        assert 'error' in detail
+        # The Anthropic error envelope is at the top level, not wrapped in 'detail'.
+        assert data['type'] == 'error'
+        assert data['error']['type'] == 'authentication_error'
+        assert 'message' in data['error']
 
 
 class TestAnthropicHTTPClientSelection:
@@ -1706,7 +1711,7 @@ class TestCountTokensEndpoint:
         print(f'Status: {response.status_code}')
         print(f'Response: {response.json()}')
         print('Checking: HTTP 422 (validation error)...')
-        assert response.status_code == 422
+        assert response.status_code == 400
         print('✅ Empty messages rejected')
 
     def test_count_tokens_invalid_api_key(self, test_client,
@@ -1727,10 +1732,9 @@ class TestCountTokensEndpoint:
         assert response.status_code == 401
         print('Checking: Error format is Anthropic-style...')
         data = response.json()
-        assert 'detail' in data
-        detail = data['detail']
-        assert 'error' in detail
-        assert detail['error']['type'] == 'authentication_error'
+        # Anthropic error envelope is at the top level, not wrapped in 'detail'.
+        assert data['type'] == 'error'
+        assert data['error']['type'] == 'authentication_error'
         print('✅ Invalid API key rejected')
 
     def test_count_tokens_multiple_messages(self, test_client,
@@ -1848,6 +1852,8 @@ def _mock_upstream_error_client(status_code, json_body=None, text=''):
     mock_response = MagicMock()
     mock_response.status_code = status_code
     mock_response.aread = AsyncMock()
+    mock_response.aclose = AsyncMock()
+    mock_response.headers = {}
     if json_body is not None:
         mock_response.json = Mock(return_value=json_body)
     else:
@@ -1997,3 +2003,99 @@ class TestUnknownContentBlockTolerance:
             print(f'Status: {response.status_code}')
             print('Checking: validation passed (not 422)...')
             assert response.status_code != 422
+
+
+class TestRetryAfterForwarding:
+    """Tests that a 429 retry-after header is forwarded to the client."""
+
+    def test_retry_after_header_is_forwarded(self, test_client, valid_proxy_api_key):
+        """
+        What it does: An upstream 429 carrying retry-after is surfaced with that header.
+        Purpose: Claude Code honors retry-after for backoff; dropping it degrades pacing.
+        """
+        print("Setup: upstream 429 with retry-after")
+        client = _mock_upstream_error_client(429, {"type": "error",
+            "error": {"type": "rate_limit_error", "message": "slow down"}})
+        # The response is client.request_with_retry.return_value.
+        client.request_with_retry.return_value.headers = {"retry-after": "7"}
+        with patch("opencode_zen.routes_anthropic.OpenCodeHttpClient") as mock_cls:
+            mock_cls.return_value = client
+            response = test_client.post("/v1/messages", headers={
+                "x-api-key": valid_proxy_api_key}, json={"model": "claude-sonnet-4-5",
+                "max_tokens": 10, "messages": [{"role": "user", "content": "hi"}]})
+        print(f"Status: {response.status_code}, retry-after: {response.headers.get('retry-after')}")
+        assert response.status_code == 429
+        assert response.headers.get("retry-after") == "7"
+
+
+class TestDebugLoggerWiring:
+    """Tests that the route flushes/discards debug logs at the right lifecycle points."""
+
+    def test_upstream_error_flushes_debug_logs(self, test_client, valid_proxy_api_key):
+        """
+        What it does: An upstream error status triggers debug_logger.flush_on_error.
+        Purpose: DEBUG_MODE=errors must capture upstream errors, not only 422s.
+        """
+        print("Setup: upstream 500 + mocked debug logger")
+        client = _mock_upstream_error_client(500, {"type": "error",
+            "error": {"type": "api_error", "message": "boom"}})
+        mock_debug = MagicMock()
+        with patch("opencode_zen.routes_anthropic.OpenCodeHttpClient") as mock_cls, \
+             patch("opencode_zen.routes_anthropic.debug_logger", mock_debug):
+            mock_cls.return_value = client
+            test_client.post("/v1/messages", headers={"x-api-key": valid_proxy_api_key},
+                json={"model": "claude-sonnet-4-5", "max_tokens": 10,
+                      "messages": [{"role": "user", "content": "hi"}]})
+        print(f"flush_on_error calls: {mock_debug.flush_on_error.call_args_list}")
+        assert mock_debug.flush_on_error.called
+        assert mock_debug.flush_on_error.call_args[0][0] == 500
+
+    def test_none_debug_logger_does_not_crash(self, test_client, valid_proxy_api_key):
+        """
+        What it does: With debug_logger is None, an errored request still responds.
+        Purpose: The debug wiring must never break the response path.
+        """
+        print("Setup: upstream 500 + debug_logger set to None")
+        client = _mock_upstream_error_client(500, {"type": "error",
+            "error": {"type": "api_error", "message": "boom"}})
+        with patch("opencode_zen.routes_anthropic.OpenCodeHttpClient") as mock_cls, \
+             patch("opencode_zen.routes_anthropic.debug_logger", None):
+            mock_cls.return_value = client
+            response = test_client.post("/v1/messages",
+                headers={"x-api-key": valid_proxy_api_key},
+                json={"model": "claude-sonnet-4-5", "max_tokens": 10,
+                      "messages": [{"role": "user", "content": "hi"}]})
+        assert response.status_code == 500
+
+    def test_successful_request_discards_debug_buffers(self, test_client, valid_proxy_api_key):
+        """
+        What it does: A successful non-streaming request calls discard_buffers.
+        Purpose: Buffers/sink must not linger between requests in DEBUG_MODE.
+        """
+        print("Setup: upstream 200 SSE + mocked debug logger")
+
+        class _OkStream:
+            status_code = 200
+            headers = {}
+            async def aiter_lines(self):
+                import json as _json
+                yield "data: " + _json.dumps({"choices": [
+                    {"index": 0, "delta": {"content": "hello"}, "finish_reason": "stop"}]})
+                yield "data: [DONE]"
+            async def aclose(self):
+                pass
+
+        client = MagicMock()
+        client.request_with_retry = AsyncMock(return_value=_OkStream())
+        client._owns_client = False
+        mock_debug = MagicMock()
+        with patch("opencode_zen.routes_anthropic.OpenCodeHttpClient") as mock_cls, \
+             patch("opencode_zen.routes_anthropic.debug_logger", mock_debug):
+            mock_cls.return_value = client
+            response = test_client.post("/v1/messages",
+                headers={"x-api-key": valid_proxy_api_key},
+                json={"model": "claude-sonnet-4-5", "max_tokens": 10, "stream": False,
+                      "messages": [{"role": "user", "content": "hi"}]})
+        print(f"Status: {response.status_code}, discard called: {mock_debug.discard_buffers.called}")
+        assert response.status_code == 200
+        assert mock_debug.discard_buffers.called

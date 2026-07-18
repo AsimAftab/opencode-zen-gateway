@@ -289,3 +289,151 @@ class TestValidationExceptionHandlerEdgeCases:
             
             body = json.loads(response.body.decode())
             assert "Привет мир" in body["body"]
+
+
+def _mock_request(path):
+    """Builds a mock Request whose url.path is a real string."""
+    req = MagicMock(spec=Request)
+    req.url = MagicMock()
+    req.url.path = path
+    return req
+
+
+class TestValidationHandlerAnthropicPath:
+    """Tests that /v1/messages validation errors return an Anthropic-shaped 400."""
+
+    @pytest.mark.asyncio
+    async def test_anthropic_path_returns_400_error_envelope(self):
+        """
+        What it does: A validation error on /v1/messages returns 400 with the
+        Anthropic error envelope, not FastAPI's 422 {"detail": ...}.
+        Purpose: Claude Code parses error.type/error.message; the real Messages API
+        returns 400 invalid_request_error for malformed requests.
+        """
+        import json
+        from opencode_zen.exceptions import validation_exception_handler
+
+        request = _mock_request("/v1/messages")
+        request.body = AsyncMock(return_value=b'{"model": "x"}')
+        exc = MagicMock(spec=RequestValidationError)
+        exc.errors.return_value = [
+            {"type": "missing", "loc": ["body", "max_tokens"], "msg": "Field required", "input": {}}
+        ]
+        with patch('opencode_zen.debug_logger.debug_logger'):
+            response = await validation_exception_handler(request, exc)
+        assert response.status_code == 400
+        body = json.loads(response.body.decode())
+        assert body["type"] == "error"
+        assert body["error"]["type"] == "invalid_request_error"
+        assert "max_tokens" in body["error"]["message"]
+
+
+class TestHTTPExceptionHandler:
+    """Tests for the dialect-aware HTTPException handler."""
+
+    @pytest.mark.asyncio
+    async def test_anthropic_auth_error_is_unwrapped(self):
+        """
+        What it does: A 401 with an already-Anthropic-shaped detail is returned at the
+        top level, not wrapped in {"detail": ...}.
+        Purpose: Claude Code reads error.message directly.
+        """
+        import json
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+        from opencode_zen.exceptions import http_exception_handler
+
+        request = _mock_request("/v1/messages")
+        exc = StarletteHTTPException(status_code=401, detail={
+            "type": "error", "error": {"type": "authentication_error", "message": "no key"}})
+        response = await http_exception_handler(request, exc)
+        assert response.status_code == 401
+        body = json.loads(response.body.decode())
+        assert body["type"] == "error"
+        assert body["error"]["type"] == "authentication_error"
+
+    @pytest.mark.asyncio
+    async def test_anthropic_plain_detail_is_shaped(self):
+        """
+        What it does: A 502 with a plain-string detail becomes an Anthropic envelope.
+        Purpose: Transport failures must reach Claude Code in a parseable shape.
+        """
+        import json
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+        from opencode_zen.exceptions import http_exception_handler
+
+        request = _mock_request("/v1/messages")
+        exc = StarletteHTTPException(status_code=502, detail="Connection failed: DNS error")
+        response = await http_exception_handler(request, exc)
+        assert response.status_code == 502
+        body = json.loads(response.body.decode())
+        assert body["type"] == "error"
+        assert body["error"]["type"] == "api_error"
+        assert "DNS error" in body["error"]["message"]
+
+    @pytest.mark.asyncio
+    async def test_openai_path_is_openai_shaped(self):
+        """
+        What it does: A 401 on the OpenAI path returns {"error": {...}}.
+        Purpose: OpenAI clients expect their own error envelope.
+        """
+        import json
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+        from opencode_zen.exceptions import http_exception_handler
+
+        request = _mock_request("/v1/chat/completions")
+        exc = StarletteHTTPException(status_code=401, detail="Invalid or missing API Key")
+        response = await http_exception_handler(request, exc)
+        assert response.status_code == 401
+        body = json.loads(response.body.decode())
+        assert body["error"]["message"] == "Invalid or missing API Key"
+
+    @pytest.mark.asyncio
+    async def test_unknown_path_keeps_default_shape(self):
+        """
+        What it does: A 404 on an unknown path keeps FastAPI's {"detail": ...}.
+        Purpose: Don't reshape errors for endpoints outside the two dialects.
+        """
+        import json
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+        from opencode_zen.exceptions import http_exception_handler
+
+        request = _mock_request("/favicon.ico")
+        exc = StarletteHTTPException(status_code=404, detail="Not Found")
+        response = await http_exception_handler(request, exc)
+        assert response.status_code == 404
+        body = json.loads(response.body.decode())
+        assert body["detail"] == "Not Found"
+
+    @pytest.mark.asyncio
+    async def test_flushes_debug_logs_for_logged_endpoint(self):
+        """
+        What it does: On an error for /v1/messages, the handler flushes debug logs.
+        Purpose: DEBUG_MODE=errors must capture gateway-originated errors like 401
+        auth failures, not only 422 validation errors.
+        """
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+        from opencode_zen.exceptions import http_exception_handler
+
+        request = _mock_request("/v1/messages")
+        exc = StarletteHTTPException(status_code=401, detail="no key")
+        mock_debug = MagicMock()
+        with patch('opencode_zen.debug_logger.debug_logger', mock_debug):
+            await http_exception_handler(request, exc)
+        assert mock_debug.flush_on_error.called
+        assert mock_debug.flush_on_error.call_args[0][0] == 401
+
+    @pytest.mark.asyncio
+    async def test_does_not_flush_for_unknown_endpoint(self):
+        """
+        What it does: On a 404 for an unknown path, no debug flush happens.
+        Purpose: Debug capture is scoped to the API endpoints.
+        """
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+        from opencode_zen.exceptions import http_exception_handler
+
+        request = _mock_request("/favicon.ico")
+        exc = StarletteHTTPException(status_code=404, detail="Not Found")
+        mock_debug = MagicMock()
+        with patch('opencode_zen.debug_logger.debug_logger', mock_debug):
+            await http_exception_handler(request, exc)
+        assert not mock_debug.flush_on_error.called

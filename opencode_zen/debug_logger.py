@@ -144,12 +144,21 @@ class DebugLogger:
         self._setup_app_logs_capture()
 
         if self._is_immediate_write():
-            # "all" mode - clear folder and recreate
+            # "all" mode: ensure the directory exists and reset only the
+            # append-mode chunk logs. We deliberately do NOT rmtree the whole
+            # directory on every request — under concurrent requests that would
+            # delete files another request is still streaming into. The
+            # overwrite-mode files (request bodies, error_info, app_logs) all
+            # truncate on write, so a wiped directory is unnecessary.
+            # NOTE: the global buffers below are a single-request debugging aid
+            # and are not safe for truly concurrent DEBUG traffic.
             try:
-                if self.debug_dir.exists():
-                    shutil.rmtree(self.debug_dir)
                 self.debug_dir.mkdir(parents=True, exist_ok=True)
-                logger.debug(f"[DebugLogger] Directory {self.debug_dir} cleared for new request.")
+                for name in ("response_stream_raw.txt", "response_stream_modified.txt"):
+                    chunk_file = self.debug_dir / name
+                    if chunk_file.exists():
+                        chunk_file.unlink()
+                logger.debug(f"[DebugLogger] Directory {self.debug_dir} prepared for new request.")
             except Exception as e:
                 logger.error(f"[DebugLogger] Error preparing directory: {e}")
 

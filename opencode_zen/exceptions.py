@@ -24,12 +24,113 @@ Contains functions for handling validation errors and other exceptions
 in a JSON-serialization compatible format.
 """
 
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Optional
 
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from loguru import logger
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+
+# Map HTTP status codes to Anthropic error `type` strings so gateway-originated
+# errors carry the same taxonomy the real Messages API uses.
+_ANTHROPIC_ERROR_TYPES: Dict[int, str] = {
+    400: "invalid_request_error",
+    401: "authentication_error",
+    403: "permission_error",
+    404: "not_found_error",
+    413: "request_too_large",
+    422: "invalid_request_error",
+    429: "rate_limit_error",
+    500: "api_error",
+    502: "api_error",
+    503: "api_error",
+    504: "api_error",
+    529: "overloaded_error",
+}
+
+
+def _is_anthropic_path(path: Any) -> bool:
+    """Returns True for Anthropic-dialect endpoints (/v1/messages...)."""
+    return isinstance(path, str) and path.startswith("/v1/messages")
+
+
+def _is_openai_path(path: Any) -> bool:
+    """Returns True for OpenAI-dialect endpoints."""
+    return isinstance(path, str) and (
+        path.startswith("/v1/chat/completions") or path.startswith("/v1/models")
+    )
+
+
+def _anthropic_error_type(status_code: int) -> str:
+    """Maps a status code to an Anthropic error type, defaulting to api_error."""
+    return _ANTHROPIC_ERROR_TYPES.get(status_code, "api_error")
+
+
+def _anthropic_error_body(status_code: int, message: str) -> Dict[str, Any]:
+    """Builds an Anthropic-shaped error envelope."""
+    return {
+        "type": "error",
+        "error": {"type": _anthropic_error_type(status_code), "message": message},
+    }
+
+
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    """
+    Renders HTTPExceptions in the dialect of the endpoint that raised them.
+
+    FastAPI's default handler wraps every HTTPException as {"detail": ...}.
+    Claude Code and OpenAI clients expect their own error envelopes, so
+    gateway-originated errors (401 auth failures, 502/504 transport failures)
+    are reshaped here based on the request path. Unknown paths keep the default
+    {"detail": ...} shape.
+
+    Args:
+        request: FastAPI Request object.
+        exc: The raised Starlette/FastAPI HTTPException.
+
+    Returns:
+        JSONResponse in the appropriate error shape, preserving any headers.
+    """
+    path = request.url.path
+    detail = exc.detail
+    headers: Optional[Dict[str, str]] = getattr(exc, "headers", None)
+
+    # Capture debug logs for gateway-originated errors on the API endpoints
+    # (e.g. 401 auth failures, re-raised 502/504 transport failures) so
+    # DEBUG_MODE=errors records them, not only 422 validation errors.
+    if _is_anthropic_path(path) or _is_openai_path(path):
+        try:
+            from opencode_zen.debug_logger import debug_logger
+            if debug_logger:
+                debug_logger.flush_on_error(exc.status_code, str(detail))
+        except ImportError:
+            pass
+
+    if _is_anthropic_path(path):
+        # An already-shaped Anthropic error (e.g. the 401 auth detail) passes through.
+        if isinstance(detail, dict) and detail.get("type") == "error" and "error" in detail:
+            content: Dict[str, Any] = detail
+        elif isinstance(detail, dict):
+            message = detail.get("message") or detail.get("detail") or str(detail)
+            content = _anthropic_error_body(exc.status_code, str(message))
+        else:
+            content = _anthropic_error_body(exc.status_code, str(detail))
+        return JSONResponse(status_code=exc.status_code, content=content, headers=headers)
+
+    if _is_openai_path(path):
+        if isinstance(detail, dict) and "error" in detail:
+            content = detail
+        elif isinstance(detail, dict):
+            message = detail.get("message") or str(detail)
+            content = {"error": {"type": "api_error", "message": str(message)}}
+        else:
+            content = {"error": {"type": "api_error", "message": str(detail)}}
+        return JSONResponse(status_code=exc.status_code, content=content, headers=headers)
+
+    # Unknown path — keep FastAPI's default envelope.
+    return JSONResponse(status_code=exc.status_code, content={"detail": detail}, headers=headers)
 
 
 def sanitize_validation_errors(errors: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -99,8 +200,36 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             debug_logger.flush_on_error(422, error_message)
     except ImportError:
         pass  # debug_logger not available
-    
+
+    # Claude Code expects the Anthropic error envelope; the real Messages API
+    # returns 400 invalid_request_error (not 422) for malformed requests.
+    if _is_anthropic_path(request.url.path):
+        message = _summarize_validation_errors(sanitized_errors)
+        return JSONResponse(
+            status_code=400,
+            content=_anthropic_error_body(400, message),
+        )
+
     return JSONResponse(
         status_code=422,
         content={"detail": sanitized_errors, "body": body_str[:500]},
     )
+
+
+def _summarize_validation_errors(errors: List[Dict[str, Any]]) -> str:
+    """
+    Renders Pydantic validation errors as a single human-readable message.
+
+    Args:
+        errors: Sanitized validation errors.
+
+    Returns:
+        A compact "loc: msg; loc: msg" summary for the error envelope.
+    """
+    parts: List[str] = []
+    for err in errors:
+        loc = err.get("loc", [])
+        loc_str = ".".join(str(p) for p in loc) if isinstance(loc, (list, tuple)) else str(loc)
+        msg = err.get("msg", "invalid value")
+        parts.append(f"{loc_str}: {msg}" if loc_str else str(msg))
+    return "; ".join(parts) or "Request validation failed"

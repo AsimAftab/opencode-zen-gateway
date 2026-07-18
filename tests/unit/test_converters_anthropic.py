@@ -1308,3 +1308,174 @@ class TestAnthropicToOpenCodeIntegration:
             f'Checking for <max_thinking_length>6000</max_thinking_length>...')
         assert '<max_thinking_length>6000</max_thinking_length>' in content
         assert '<thinking_mode>enabled</thinking_mode>' in content
+
+
+class TestMapAnthropicToolChoiceToOpenAI:
+    """Tests for Anthropic to OpenAI tool_choice mapping."""
+
+    def test_auto_maps_to_auto(self):
+        """
+        What it does: {"type":"auto"} maps to "auto".
+        Purpose: The default lets the model decide whether to call a tool.
+        """
+        from opencode_zen.converters_anthropic import map_anthropic_tool_choice_to_openai
+        assert map_anthropic_tool_choice_to_openai({"type": "auto"}) == "auto"
+
+    def test_any_maps_to_required(self):
+        """
+        What it does: {"type":"any"} maps to "required".
+        Purpose: Anthropic 'any' forces some tool; OpenAI spells that 'required'.
+        """
+        from opencode_zen.converters_anthropic import map_anthropic_tool_choice_to_openai
+        assert map_anthropic_tool_choice_to_openai({"type": "any"}) == "required"
+
+    def test_none_maps_to_none(self):
+        """
+        What it does: {"type":"none"} maps to "none".
+        Purpose: Explicitly forbid tool use.
+        """
+        from opencode_zen.converters_anthropic import map_anthropic_tool_choice_to_openai
+        assert map_anthropic_tool_choice_to_openai({"type": "none"}) == "none"
+
+    def test_tool_maps_to_function_choice(self):
+        """
+        What it does: {"type":"tool","name":"x"} maps to an OpenAI function choice.
+        Purpose: Forced-tool flows (plan mode) must pin the specific tool upstream.
+        """
+        from opencode_zen.converters_anthropic import map_anthropic_tool_choice_to_openai
+        result = map_anthropic_tool_choice_to_openai({"type": "tool", "name": "get_weather"})
+        assert result == {"type": "function", "function": {"name": "get_weather"}}
+
+    def test_pydantic_model_is_supported(self):
+        """
+        What it does: Accepts a Pydantic ToolChoiceTool model, not just a dict.
+        Purpose: The request model coerces tool_choice into typed models.
+        """
+        from opencode_zen.converters_anthropic import map_anthropic_tool_choice_to_openai
+        from opencode_zen.models_anthropic import ToolChoiceTool
+        result = map_anthropic_tool_choice_to_openai(ToolChoiceTool(type="tool", name="f"))
+        assert result == {"type": "function", "function": {"name": "f"}}
+
+    def test_none_input_returns_none(self):
+        """
+        What it does: None tool_choice returns None (nothing forwarded).
+        Purpose: Absent tool_choice must not inject anything.
+        """
+        from opencode_zen.converters_anthropic import map_anthropic_tool_choice_to_openai
+        assert map_anthropic_tool_choice_to_openai(None) is None
+
+
+class TestBuildAnthropicGenerationParams:
+    """Tests for extracting OpenAI-shaped sampling params from an Anthropic request."""
+
+    def test_maps_core_sampling_params(self):
+        """
+        What it does: Maps max_tokens/temperature/top_p/stop_sequences to OpenAI shape.
+        Purpose: These must reach the upstream, not be silently dropped.
+        """
+        from opencode_zen.converters_anthropic import build_anthropic_generation_params
+        request = AnthropicMessagesRequest(
+            model="claude-sonnet-4-5",
+            max_tokens=1234,
+            temperature=0.4,
+            top_p=0.9,
+            stop_sequences=["STOP"],
+            messages=[AnthropicMessage(role="user", content="hi")],
+        )
+        params = build_anthropic_generation_params(request)
+        assert params["max_tokens"] == 1234
+        assert params["temperature"] == 0.4
+        assert params["top_p"] == 0.9
+        assert params["stop"] == ["STOP"]
+
+    def test_empty_stop_sequences_becomes_none(self):
+        """
+        What it does: Empty stop_sequences map to None (dropped by the core builder).
+        Purpose: Avoid sending an empty stop array upstream.
+        """
+        from opencode_zen.converters_anthropic import build_anthropic_generation_params
+        request = AnthropicMessagesRequest(
+            model="claude-sonnet-4-5", max_tokens=10, stop_sequences=[],
+            messages=[AnthropicMessage(role="user", content="hi")],
+        )
+        assert build_anthropic_generation_params(request)["stop"] is None
+
+
+class TestGenerationParamsReachPayload:
+    """End-to-end: anthropic_to_opencode forwards generation params into the payload."""
+
+    def test_payload_carries_max_tokens_and_temperature(self):
+        """
+        What it does: max_tokens/temperature/top_p appear in the upstream payload.
+        Purpose: Claude Code's output cap and sampling settings must be honored.
+        """
+        request = AnthropicMessagesRequest(
+            model="claude-sonnet-4-5", max_tokens=555, temperature=0.2, top_p=0.7,
+            messages=[AnthropicMessage(role="user", content="hi")],
+        )
+        payload = anthropic_to_opencode(request, "conv-1", "")
+        assert payload["max_tokens"] == 555
+        assert payload["temperature"] == 0.2
+        assert payload["top_p"] == 0.7
+
+    def test_forced_tool_choice_is_forwarded_when_tools_present(self):
+        """
+        What it does: tool_choice reaches the payload when tools exist.
+        Purpose: Forced-tool flows must be honored upstream.
+        """
+        request = AnthropicMessagesRequest(
+            model="claude-sonnet-4-5", max_tokens=10,
+            messages=[AnthropicMessage(role="user", content="hi")],
+            tools=[AnthropicTool(name="f", input_schema={"type": "object", "properties": {}})],
+            tool_choice={"type": "tool", "name": "f"},
+        )
+        payload = anthropic_to_opencode(request, "conv-1", "")
+        assert payload["tool_choice"] == {"type": "function", "function": {"name": "f"}}
+
+    def test_tool_choice_dropped_when_no_tools(self):
+        """
+        What it does: tool_choice is NOT sent when the payload has no tools.
+        Purpose: The upstream 400s on a tool_choice with no tools.
+        """
+        request = AnthropicMessagesRequest(
+            model="claude-sonnet-4-5", max_tokens=10,
+            messages=[AnthropicMessage(role="user", content="hi")],
+            tool_choice={"type": "any"},
+        )
+        payload = anthropic_to_opencode(request, "conv-1", "")
+        assert "tool_choice" not in payload
+
+
+class TestToolResultIsErrorPreserved:
+    """Tests that a failed tool_result is marked, not silently treated as success."""
+
+    def test_is_error_flag_is_extracted(self):
+        """
+        What it does: extract_tool_results_from_anthropic_content preserves is_error.
+        Purpose: The core builder needs the flag to mark the tool message.
+        """
+        content = [{"type": "tool_result", "tool_use_id": "t1",
+                    "content": "boom", "is_error": True}]
+        results = extract_tool_results_from_anthropic_content(content)
+        assert results[0]["is_error"] is True
+
+    def test_error_tool_result_is_marked_in_payload(self):
+        """
+        What it does: A failed tool_result yields a tool message flagged as an error.
+        Purpose: The model must be able to tell a failed call from a successful one.
+        """
+        request = AnthropicMessagesRequest(
+            model="claude-sonnet-4-5", max_tokens=10,
+            messages=[
+                AnthropicMessage(role="assistant", content=[
+                    {"type": "tool_use", "id": "t1", "name": "run", "input": {}}]),
+                AnthropicMessage(role="user", content=[
+                    {"type": "tool_result", "tool_use_id": "t1",
+                     "content": "command failed", "is_error": True}]),
+            ],
+        )
+        payload = anthropic_to_opencode(request, "conv-1", "")
+        tool_msgs = [m for m in payload["messages"] if m.get("role") == "tool"]
+        assert tool_msgs, "expected a tool-role message"
+        assert "[Tool execution error]" in tool_msgs[0]["content"]
+        assert "command failed" in tool_msgs[0]["content"]
