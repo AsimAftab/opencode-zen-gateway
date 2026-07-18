@@ -58,30 +58,36 @@ class TestDebugLoggerModeOff:
 class TestDebugLoggerModeAll:
     """Тесты для режима DEBUG_MODE=all."""
     
-    def test_prepare_new_request_clears_directory(self, tmp_path):
+    def test_prepare_new_request_resets_chunk_logs_without_wiping_dir(self, tmp_path):
         """
-        Что он делает: Проверяет, что prepare_new_request очищает директорию в режиме all.
-        Цель: Убедиться, что старые логи удаляются.
+        What it does: prepare_new_request in 'all' mode resets the append-mode chunk
+        logs but does NOT delete the whole directory / unrelated in-flight files.
+        Purpose: Regression guard for the concurrency fix — a blanket rmtree would
+        delete files another concurrent request is still streaming into.
         """
-        print("Настройка: Режим all, создаём старый файл...")
+        print("Setup: 'all' mode with a stale chunk log and an unrelated file...")
         debug_dir = tmp_path / "debug_logs"
         debug_dir.mkdir()
-        old_file = debug_dir / "old_file.txt"
-        old_file.write_text("old content")
-        
+        stale_chunk = debug_dir / "response_stream_raw.txt"
+        stale_chunk.write_text("stale chunk data")
+        unrelated = debug_dir / "app_logs.txt"
+        unrelated.write_text("another request's logs")
+
         with patch('opencode_zen.debug_logger.DEBUG_MODE', 'all'):
             from opencode_zen.debug_logger import DebugLogger
             logger = DebugLogger.__new__(DebugLogger)
             logger._initialized = False
             logger.__init__()
             logger.debug_dir = debug_dir
-            
-            print("Действие: Вызов prepare_new_request...")
+
+            print("Action: calling prepare_new_request...")
             logger.prepare_new_request()
-            
-            print(f"Проверяем, что старый файл удалён...")
-            assert not old_file.exists()
-            print(f"Проверяем, что директория существует...")
+
+            print("Verifying: stale append-mode chunk log was reset...")
+            assert not stale_chunk.exists()
+            print("Verifying: unrelated file was NOT deleted...")
+            assert unrelated.exists()
+            print("Verifying: directory still exists...")
             assert debug_dir.exists()
     
     def test_log_request_body_writes_immediately(self, tmp_path):

@@ -403,3 +403,37 @@ class TestHTTPExceptionHandler:
         assert response.status_code == 404
         body = json.loads(response.body.decode())
         assert body["detail"] == "Not Found"
+
+    @pytest.mark.asyncio
+    async def test_flushes_debug_logs_for_logged_endpoint(self):
+        """
+        What it does: On an error for /v1/messages, the handler flushes debug logs.
+        Purpose: DEBUG_MODE=errors must capture gateway-originated errors like 401
+        auth failures, not only 422 validation errors.
+        """
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+        from opencode_zen.exceptions import http_exception_handler
+
+        request = _mock_request("/v1/messages")
+        exc = StarletteHTTPException(status_code=401, detail="no key")
+        mock_debug = MagicMock()
+        with patch('opencode_zen.debug_logger.debug_logger', mock_debug):
+            await http_exception_handler(request, exc)
+        assert mock_debug.flush_on_error.called
+        assert mock_debug.flush_on_error.call_args[0][0] == 401
+
+    @pytest.mark.asyncio
+    async def test_does_not_flush_for_unknown_endpoint(self):
+        """
+        What it does: On a 404 for an unknown path, no debug flush happens.
+        Purpose: Debug capture is scoped to the API endpoints.
+        """
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+        from opencode_zen.exceptions import http_exception_handler
+
+        request = _mock_request("/favicon.ico")
+        exc = StarletteHTTPException(status_code=404, detail="Not Found")
+        mock_debug = MagicMock()
+        with patch('opencode_zen.debug_logger.debug_logger', mock_debug):
+            await http_exception_handler(request, exc)
+        assert not mock_debug.flush_on_error.called

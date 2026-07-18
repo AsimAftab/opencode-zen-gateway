@@ -2026,3 +2026,76 @@ class TestRetryAfterForwarding:
         print(f"Status: {response.status_code}, retry-after: {response.headers.get('retry-after')}")
         assert response.status_code == 429
         assert response.headers.get("retry-after") == "7"
+
+
+class TestDebugLoggerWiring:
+    """Tests that the route flushes/discards debug logs at the right lifecycle points."""
+
+    def test_upstream_error_flushes_debug_logs(self, test_client, valid_proxy_api_key):
+        """
+        What it does: An upstream error status triggers debug_logger.flush_on_error.
+        Purpose: DEBUG_MODE=errors must capture upstream errors, not only 422s.
+        """
+        print("Setup: upstream 500 + mocked debug logger")
+        client = _mock_upstream_error_client(500, {"type": "error",
+            "error": {"type": "api_error", "message": "boom"}})
+        mock_debug = MagicMock()
+        with patch("opencode_zen.routes_anthropic.OpenCodeHttpClient") as mock_cls, \
+             patch("opencode_zen.routes_anthropic.debug_logger", mock_debug):
+            mock_cls.return_value = client
+            test_client.post("/v1/messages", headers={"x-api-key": valid_proxy_api_key},
+                json={"model": "claude-sonnet-4-5", "max_tokens": 10,
+                      "messages": [{"role": "user", "content": "hi"}]})
+        print(f"flush_on_error calls: {mock_debug.flush_on_error.call_args_list}")
+        assert mock_debug.flush_on_error.called
+        assert mock_debug.flush_on_error.call_args[0][0] == 500
+
+    def test_none_debug_logger_does_not_crash(self, test_client, valid_proxy_api_key):
+        """
+        What it does: With debug_logger is None, an errored request still responds.
+        Purpose: The debug wiring must never break the response path.
+        """
+        print("Setup: upstream 500 + debug_logger set to None")
+        client = _mock_upstream_error_client(500, {"type": "error",
+            "error": {"type": "api_error", "message": "boom"}})
+        with patch("opencode_zen.routes_anthropic.OpenCodeHttpClient") as mock_cls, \
+             patch("opencode_zen.routes_anthropic.debug_logger", None):
+            mock_cls.return_value = client
+            response = test_client.post("/v1/messages",
+                headers={"x-api-key": valid_proxy_api_key},
+                json={"model": "claude-sonnet-4-5", "max_tokens": 10,
+                      "messages": [{"role": "user", "content": "hi"}]})
+        assert response.status_code == 500
+
+    def test_successful_request_discards_debug_buffers(self, test_client, valid_proxy_api_key):
+        """
+        What it does: A successful non-streaming request calls discard_buffers.
+        Purpose: Buffers/sink must not linger between requests in DEBUG_MODE.
+        """
+        print("Setup: upstream 200 SSE + mocked debug logger")
+
+        class _OkStream:
+            status_code = 200
+            headers = {}
+            async def aiter_lines(self):
+                import json as _json
+                yield "data: " + _json.dumps({"choices": [
+                    {"index": 0, "delta": {"content": "hello"}, "finish_reason": "stop"}]})
+                yield "data: [DONE]"
+            async def aclose(self):
+                pass
+
+        client = MagicMock()
+        client.request_with_retry = AsyncMock(return_value=_OkStream())
+        client._owns_client = False
+        mock_debug = MagicMock()
+        with patch("opencode_zen.routes_anthropic.OpenCodeHttpClient") as mock_cls, \
+             patch("opencode_zen.routes_anthropic.debug_logger", mock_debug):
+            mock_cls.return_value = client
+            response = test_client.post("/v1/messages",
+                headers={"x-api-key": valid_proxy_api_key},
+                json={"model": "claude-sonnet-4-5", "max_tokens": 10, "stream": False,
+                      "messages": [{"role": "user", "content": "hi"}]})
+        print(f"Status: {response.status_code}, discard called: {mock_debug.discard_buffers.called}")
+        assert response.status_code == 200
+        assert mock_debug.discard_buffers.called

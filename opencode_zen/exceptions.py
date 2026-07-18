@@ -97,6 +97,17 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
     detail = exc.detail
     headers: Optional[Dict[str, str]] = getattr(exc, "headers", None)
 
+    # Capture debug logs for gateway-originated errors on the API endpoints
+    # (e.g. 401 auth failures, re-raised 502/504 transport failures) so
+    # DEBUG_MODE=errors records them, not only 422 validation errors.
+    if _is_anthropic_path(path) or _is_openai_path(path):
+        try:
+            from opencode_zen.debug_logger import debug_logger
+            if debug_logger:
+                debug_logger.flush_on_error(exc.status_code, str(detail))
+        except ImportError:
+            pass
+
     if _is_anthropic_path(path):
         # An already-shaped Anthropic error (e.g. the 401 auth detail) passes through.
         if isinstance(detail, dict) and detail.get("type") == "error" and "error" in detail:

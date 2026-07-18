@@ -30,7 +30,6 @@ from opencode_zen.models_openai import (
     OpenAIModel,
     ModelList,
     ChatCompletionRequest,
-    ChatMessage
 )
 from opencode_zen.converters_openai import build_opencode_payload
 from opencode_zen.http_client import OpenCodeHttpClient
@@ -41,6 +40,24 @@ try:
     from opencode_zen.debug_logger import debug_logger
 except ImportError:
     debug_logger = None
+
+
+def _debug_flush(status_code: int, message: str = "") -> None:
+    """Flush buffered debug logs on error (no-op unless DEBUG_MODE captures errors)."""
+    if debug_logger:
+        try:
+            debug_logger.flush_on_error(status_code, message)
+        except Exception as exc:  # never let debug logging break the response
+            logger.debug(f"debug flush failed: {exc}")
+
+
+def _debug_discard() -> None:
+    """Discard buffered debug logs after a successful request."""
+    if debug_logger:
+        try:
+            debug_logger.discard_buffers()
+        except Exception as exc:
+            logger.debug(f"debug discard failed: {exc}")
 
 
 def _extract_upstream_error(response: httpx.Response) -> dict:
@@ -120,45 +137,6 @@ async def get_models(request: Request):
 @router.post("/v1/chat/completions", dependencies=[Depends(verify_api_key)])
 async def chat_completions(request: Request, request_data: ChatCompletionRequest):
     logger.info(f"Request to /v1/chat/completions (model={request_data.model}, stream={request_data.stream})")
-    
-    from opencode_zen.truncation_state import get_tool_truncation, get_content_truncation
-    from opencode_zen.truncation_recovery import generate_truncation_tool_result, generate_truncation_user_message
-    
-    modified_messages = []
-    for msg in request_data.messages:
-        if msg.role == "tool" and msg.tool_call_id:
-            truncation_info = get_tool_truncation(msg.tool_call_id)
-            if truncation_info:
-                synthetic = generate_truncation_tool_result(
-                    tool_name=truncation_info.tool_name,
-                    tool_use_id=msg.tool_call_id,
-                    truncation_info=truncation_info.truncation_info
-                )
-                modified_content = f"{synthetic['content']}\n\n---\n\nOriginal tool result:\n{msg.content}"
-                if isinstance(msg, dict):
-                    modified_msg = msg.copy()
-                    modified_msg["content"] = modified_content
-                else:
-                    modified_msg = msg.model_copy(update={"content": modified_content})
-                modified_messages.append(modified_msg)
-                continue
-                
-        if msg.role == "assistant" and msg.content:
-            text_content = msg.content if isinstance(msg.content, str) else ""
-            if text_content:
-                truncation_info = get_content_truncation(text_content)
-                if truncation_info:
-                    modified_messages.append(msg)
-                    synthetic_user_msg = ChatMessage(
-                        role="user",
-                        content=generate_truncation_user_message()
-                    )
-                    modified_messages.append(synthetic_user_msg)
-                    continue
-                    
-        modified_messages.append(msg)
-        
-    request_data.messages = modified_messages
 
     if WEB_SEARCH_ENABLED:
         # Opt-in emulation: offer a web_search function tool so the model can
@@ -208,8 +186,10 @@ async def chat_completions(request: Request, request_data: ChatCompletionRequest
                         # the blank-line event framing SSE parsers require.
                         async for raw_chunk in response.aiter_raw():
                             yield raw_chunk
+                        _debug_discard()
                     except Exception as e:
                         logger.error(f"Streaming error: {e}")
+                        _debug_flush(502, f"Streaming error: {e}")
                         error_payload = {"error": {"type": "api_error", "message": f"Stream interrupted: {str(e)}"}}
                         yield f"data: {json.dumps(error_payload, ensure_ascii=False)}\n\n".encode("utf-8")
                     finally:
@@ -221,6 +201,7 @@ async def chat_completions(request: Request, request_data: ChatCompletionRequest
                 # chat.completion response for non-streaming clients.
                 try:
                     aggregated = await aggregate_openai_sse(response)
+                    _debug_discard()
                     return JSONResponse(content=build_openai_completion(aggregated, request_data.model))
                 finally:
                     # The upstream is streamed even for non-streaming clients;
@@ -236,6 +217,7 @@ async def chat_completions(request: Request, request_data: ChatCompletionRequest
             if http_client._owns_client:
                 await http_client.close()
 
+            _debug_flush(response.status_code, "Upstream returned an error status")
             error_headers = {"retry-after": retry_after} if retry_after else None
             return JSONResponse(
                 status_code=response.status_code,
@@ -248,6 +230,7 @@ async def chat_completions(request: Request, request_data: ChatCompletionRequest
         raise
     except Exception as e:
         logger.error(f"Request failed: {e}")
+        _debug_flush(502, f"Request failed: {e}")
         if http_client._owns_client:
             await http_client.close()
         return JSONResponse(
