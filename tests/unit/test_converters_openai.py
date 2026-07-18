@@ -1380,3 +1380,53 @@ class TestBuildOpenCodePayloadIntegration:
             )
         assert f'<max_thinking_length>{expected_budget}</max_thinking_length>' in content
         assert '<thinking_mode>enabled</thinking_mode>' in content
+
+
+class TestBuildOpenAIGenerationParams:
+    """Tests for pass-through of OpenAI sampling params into the upstream payload."""
+
+    def test_maps_sampling_params(self):
+        """
+        What it does: temperature/top_p/stop/tool_choice pass through unchanged.
+        Purpose: OpenAI request fields are already in the upstream shape.
+        """
+        from opencode_zen.converters_openai import build_openai_generation_params
+        request = ChatCompletionRequest(
+            model='claude-sonnet-4-5',
+            messages=[ChatMessage(role='user', content='hi')],
+            max_tokens=321, temperature=0.3, top_p=0.8, stop=['END'],
+            tool_choice='auto',
+        )
+        params = build_openai_generation_params(request)
+        assert params['max_tokens'] == 321
+        assert params['temperature'] == 0.3
+        assert params['top_p'] == 0.8
+        assert params['stop'] == ['END']
+        assert params['tool_choice'] == 'auto'
+
+    def test_max_completion_tokens_fallback(self):
+        """
+        What it does: max_tokens falls back to max_completion_tokens.
+        Purpose: Newer OpenAI clients send max_completion_tokens instead.
+        """
+        from opencode_zen.converters_openai import build_openai_generation_params
+        request = ChatCompletionRequest(
+            model='claude-sonnet-4-5',
+            messages=[ChatMessage(role='user', content='hi')],
+            max_completion_tokens=999,
+        )
+        assert build_openai_generation_params(request)['max_tokens'] == 999
+
+    def test_params_reach_payload(self):
+        """
+        What it does: build_opencode_payload includes the forwarded params.
+        Purpose: End-to-end confirmation that params are not dropped.
+        """
+        request = ChatCompletionRequest(
+            model='claude-sonnet-4-5',
+            messages=[ChatMessage(role='user', content='hi')],
+            max_tokens=222, temperature=0.1,
+        )
+        payload = build_opencode_payload(request, 'conv-1', '')
+        assert payload['max_tokens'] == 222
+        assert payload['temperature'] == 0.1

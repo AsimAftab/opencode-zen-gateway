@@ -5134,3 +5134,122 @@ class TestBuildOpenCodePayloadToolCallShapes:
         tc = result.payload['messages'][-1]['tool_calls'][0]
         print(f'Comparing: arguments={tc["function"]["arguments"]!r}')
         assert tc['function']['arguments'] == '{}'
+
+
+class TestBuildOpenCodePayloadGenerationParams:
+    """Tests that generation_params are merged into the upstream payload."""
+
+    def _build(self, messages, tools=None, generation_params=None):
+        return build_opencode_payload(
+            messages=messages, system_prompt='', model_id='claude-sonnet-4-5',
+            tools=tools, conversation_id='c', profile_arn='',
+            thinking_config=ThinkingConfig(), generation_params=generation_params,
+        )
+
+    def test_non_none_params_are_merged(self):
+        """
+        What it does: max_tokens/temperature merge into the payload.
+        Purpose: Client sampling settings must reach the upstream.
+        """
+        messages = [UnifiedMessage(role='user', content='hi')]
+        result = self._build(messages, generation_params={
+            'max_tokens': 100, 'temperature': 0.5})
+        assert result.payload['max_tokens'] == 100
+        assert result.payload['temperature'] == 0.5
+
+    def test_none_values_are_dropped(self):
+        """
+        What it does: Params whose value is None are not written to the payload.
+        Purpose: Avoid sending null sampling fields the upstream may reject.
+        """
+        messages = [UnifiedMessage(role='user', content='hi')]
+        result = self._build(messages, generation_params={
+            'max_tokens': 100, 'temperature': None, 'top_p': None})
+        assert 'temperature' not in result.payload
+        assert 'top_p' not in result.payload
+
+    def test_tool_choice_dropped_without_tools(self):
+        """
+        What it does: tool_choice is dropped when the payload carries no tools.
+        Purpose: The upstream 400s on a tool_choice with no tools.
+        """
+        messages = [UnifiedMessage(role='user', content='hi')]
+        result = self._build(messages, tools=None, generation_params={
+            'tool_choice': 'required'})
+        assert 'tool_choice' not in result.payload
+
+    def test_tool_choice_kept_with_tools(self):
+        """
+        What it does: tool_choice is kept when tools are present.
+        Purpose: Forced-tool flows must reach the upstream.
+        """
+        messages = [UnifiedMessage(role='user', content='hi')]
+        tools = [UnifiedTool(name='f', description='d',
+                             input_schema={'type': 'object', 'properties': {}})]
+        result = self._build(messages, tools=tools, generation_params={
+            'tool_choice': 'required'})
+        assert result.payload['tool_choice'] == 'required'
+
+
+class TestBuildOpenCodePayloadOrphanedToolResults:
+    """Tests that orphaned tool_results are converted to text (no leading tool message)."""
+
+    def _build(self, messages):
+        return build_opencode_payload(
+            messages=messages, system_prompt='', model_id='claude-sonnet-4-5',
+            tools=None, conversation_id='c', profile_arn='',
+            thinking_config=ThinkingConfig(),
+        )
+
+    def test_orphaned_tool_result_not_emitted_as_tool_message(self):
+        """
+        What it does: A user tool_result with no preceding assistant tool_calls turn
+        (post-compaction shape) does not produce a role:'tool' message.
+        Purpose: OpenAI-shaped upstreams 400 on a 'tool' message with no preceding
+        assistant 'tool_calls' message; the helper folds it into text instead.
+        """
+        messages = [
+            UnifiedMessage(role='user', content='', tool_results=[{
+                'type': 'tool_result', 'tool_use_id': 't1', 'content': 'result text'}]),
+        ]
+        result = self._build(messages)
+        roles = [m['role'] for m in result.payload['messages']]
+        print(f'Comparing: roles={roles}')
+        assert 'tool' not in roles
+        # The tool result content is preserved as text on a user message.
+        assert any('result text' in str(m.get('content', '')) for m in result.payload['messages'])
+
+    def test_valid_tool_result_still_emitted_as_tool_message(self):
+        """
+        What it does: A tool_result that DOES follow an assistant tool_calls turn still
+        becomes a role:'tool' message.
+        Purpose: The orphan handling must not disturb well-formed histories.
+        """
+        messages = [
+            UnifiedMessage(role='assistant', content='', tool_calls=[{
+                'id': 't1', 'type': 'function',
+                'function': {'name': 'run', 'arguments': '{}'}}]),
+            UnifiedMessage(role='user', content='', tool_results=[{
+                'type': 'tool_result', 'tool_use_id': 't1', 'content': 'ok'}]),
+        ]
+        result = self._build(messages)
+        roles = [m['role'] for m in result.payload['messages']]
+        print(f'Comparing: roles={roles}')
+        assert 'tool' in roles
+
+    def test_error_tool_result_is_prefixed(self):
+        """
+        What it does: A tool_result with is_error=True is prefixed with an error marker.
+        Purpose: The model must distinguish a failed tool call from a successful one.
+        """
+        messages = [
+            UnifiedMessage(role='assistant', content='', tool_calls=[{
+                'id': 't1', 'type': 'function',
+                'function': {'name': 'run', 'arguments': '{}'}}]),
+            UnifiedMessage(role='user', content='', tool_results=[{
+                'type': 'tool_result', 'tool_use_id': 't1',
+                'content': 'boom', 'is_error': True}]),
+        ]
+        result = self._build(messages)
+        tool_msg = next(m for m in result.payload['messages'] if m['role'] == 'tool')
+        assert '[Tool execution error]' in tool_msg['content']

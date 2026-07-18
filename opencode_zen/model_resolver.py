@@ -129,6 +129,8 @@ def normalize_model_name(name: str) -> str:
         'claude-sonnet-3-7'
         >>> normalize_model_name("claude-4.5-opus-high")
         'claude-opus-4-5'
+        >>> normalize_model_name("claude-opus-4-5-high")
+        'claude-opus-4-5'
         >>> normalize_model_name("auto")
         'auto'
     """
@@ -143,9 +145,12 @@ def normalize_model_name(name: str) -> str:
 
     # Pattern 1: Standard format - claude-{family}-{major}(-{minor})?(-{suffix})?
     # Matches: claude-haiku-4-5, claude-haiku-4-5-20251001, claude-haiku-4-5-latest,
-    #          claude-sonnet-4, claude-sonnet-4-20250514, claude-sonnet-5
+    #          claude-sonnet-4, claude-sonnet-4-20250514, claude-sonnet-5,
+    #          claude-opus-4-5-high (reasoning-effort suffix stripped)
+    # The trailing group also strips an alphabetic suffix (effort levels like
+    # -high / -low / -xhigh) that Claude Code appends but the upstream rejects.
     # IMPORTANT: Minor version is 1-2 digits only! 8-digit dates must NOT match as minor.
-    standard_pattern = rf'^(claude-{_CLAUDE_FAMILIES}-\d+)(?:-(\d{{1,2}}))?(?:-(?:\d{{8}}|latest))?$'
+    standard_pattern = rf'^(claude-{_CLAUDE_FAMILIES}-\d+)(?:-(\d{{1,2}}))?(?:-(?:\d{{8}}|latest|[a-z]+))?$'
     match = re.match(standard_pattern, name_lower)
     if match:
         base = match.group(1)   # claude-haiku-4

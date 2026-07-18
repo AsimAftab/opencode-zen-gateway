@@ -306,10 +306,12 @@ class TestModelsEndpoint:
                 ] == 'model', "Model object type should be 'model'"
             assert 'owned_by' in model, "Model missing 'owned_by' field"
 
-    def test_models_owned_by_anthropic(self, test_client, valid_proxy_api_key):
+    def test_models_owned_by_opencode(self, test_client, valid_proxy_api_key):
         """
-        What it does: Verifies models are owned by Anthropic.
-        Purpose: Ensure correct model attribution.
+        What it does: Verifies the fallback model list attributes models to OpenCode.
+        Purpose: The upstream serves models from multiple vendors (Claude, DeepSeek,
+        GLM, Qwen), so the gateway attributes them to 'opencode', matching the
+        default used on the live upstream path.
         """
         print('Action: GET /v1/models with valid auth...')
         response = test_client.get('/v1/models', headers={'Authorization':
@@ -317,7 +319,7 @@ class TestModelsEndpoint:
         print(f'Result: {response.json()}')
         assert response.status_code == 200
         for model in response.json()['data']:
-            assert model['owned_by'] == 'anthropic'
+            assert model['owned_by'] == 'opencode'
 
 
 class TestChatCompletionsAuthentication:

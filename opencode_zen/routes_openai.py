@@ -23,7 +23,8 @@ from opencode_zen.config import (
     PROXY_API_KEY,
     APP_VERSION,
     OPENCODE_BASE_URL,
-    WEB_SEARCH_ENABLED
+    WEB_SEARCH_ENABLED,
+    FALLBACK_MODELS,
 )
 from opencode_zen.models_openai import (
     OpenAIModel,
@@ -107,9 +108,12 @@ async def get_models(request: Request):
     except Exception as e:
         logger.error(f"Failed to fetch models from OpenCode: {e}")
         
-    # Fallback if API fails
+    # Fallback if the upstream /models call fails: advertise the known-valid
+    # upstream model IDs (single source of truth) so a client that picks one
+    # does not immediately 400.
     openai_models = [
-        OpenAIModel(id="claude-3-5-sonnet-20241022", owned_by="anthropic", description="Claude 3.5 Sonnet")
+        OpenAIModel(id=m["modelId"], owned_by="opencode", description=m["modelId"])
+        for m in FALLBACK_MODELS
     ]
     return ModelList(data=openai_models)
 
@@ -219,16 +223,24 @@ async def chat_completions(request: Request, request_data: ChatCompletionRequest
                     aggregated = await aggregate_openai_sse(response)
                     return JSONResponse(content=build_openai_completion(aggregated, request_data.model))
                 finally:
+                    # The upstream is streamed even for non-streaming clients;
+                    # aggregation breaks on [DONE] without exhausting the body,
+                    # so close the response to release the pooled connection.
+                    await response.aclose()
                     if http_client._owns_client:
                         await http_client.close()
         else:
+            retry_after = response.headers.get("retry-after")
             await response.aread()
+            await response.aclose()
             if http_client._owns_client:
                 await http_client.close()
 
+            error_headers = {"retry-after": retry_after} if retry_after else None
             return JSONResponse(
                 status_code=response.status_code,
-                content={"error": _extract_upstream_error(response)}
+                content={"error": _extract_upstream_error(response)},
+                headers=error_headers,
             )
     except HTTPException:
         if http_client._owns_client:

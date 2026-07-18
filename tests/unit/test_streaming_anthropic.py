@@ -384,10 +384,12 @@ class TestCollectAnthropicResponse:
         assert result["stop_reason"] == "tool_use"
 
     @pytest.mark.asyncio
-    async def test_invalid_tool_arguments_fall_back_to_empty_input(self):
+    async def test_invalid_tool_arguments_raise_value_error(self):
         """
-        What it does: Substitutes {} when tool arguments are not valid JSON.
-        Purpose: Truncated upstream arguments must not crash the response.
+        What it does: Raises ValueError when tool arguments are truncated/invalid JSON.
+        Purpose: The non-streaming path must not silently hand the client a tool_use
+        with empty input (making it execute the tool with no arguments as if that
+        were intended); the failure is surfaced so the route returns a visible error.
         """
         print("Setup: tool call with truncated JSON arguments")
         response = FakeStreamResponse([
@@ -397,12 +399,9 @@ class TestCollectAnthropicResponse:
             "data: [DONE]",
         ])
 
-        print("Action: collecting response")
-        result = await collect_anthropic_response(response, "m", None, None)
-
-        tool_block = next(b for b in result["content"] if b["type"] == "tool_use")
-        print(f"Comparing: input={tool_block['input']}")
-        assert tool_block["input"] == {}
+        print("Action: collecting response expecting ValueError")
+        with pytest.raises(ValueError):
+            await collect_anthropic_response(response, "m", None, None)
 
     @pytest.mark.asyncio
     async def test_reasoning_becomes_thinking_block(self):
@@ -424,3 +423,104 @@ class TestCollectAnthropicResponse:
         print(f"Comparing: {result['content']}")
         assert result["content"][0] == {"type": "thinking", "thinking": "hmm", "signature": ""}
         assert result["content"][1] == {"type": "text", "text": "Answer"}
+
+
+class TestStreamingStopReasonToolUseFallback:
+    """Tests that the streaming path reports tool_use when the upstream dies mid-tool-call."""
+
+    @pytest.mark.asyncio
+    async def test_tool_call_without_finish_reason_reports_tool_use(self):
+        """
+        What it does: When the upstream emits a complete tool call then EOFs with no
+        finish_reason, the message_delta reports stop_reason 'tool_use'.
+        Purpose: Claude Code dispatches on stop_reason; with 'end_turn' it would never
+        execute the tool. Mirrors the non-streaming collect path.
+        """
+        print("Setup: tool_use stream that ends without finish_reason")
+        response = FakeStreamResponse([
+            delta_chunk({"tool_calls": [{"index": 0, "id": "call_1",
+                                         "function": {"name": "t", "arguments": '{"a":1}'}}]}),
+            "data: [DONE]",
+        ])
+
+        print("Action: collecting emitted events")
+        events = await collect_events(response)
+        message_delta = next(d for t, d in events if t == "message_delta")
+        print(f"Comparing: stop_reason={message_delta['delta']['stop_reason']}")
+        assert message_delta["delta"]["stop_reason"] == "tool_use"
+
+    @pytest.mark.asyncio
+    async def test_text_without_finish_reason_still_reports_end_turn(self):
+        """
+        What it does: A text-only stream ending without finish_reason stays 'end_turn'.
+        Purpose: The tool_use fallback must not fire when no tool block was emitted.
+        """
+        print("Setup: text stream that ends without finish_reason")
+        response = FakeStreamResponse([
+            delta_chunk({"content": "hello"}),
+            "data: [DONE]",
+        ])
+
+        print("Action: collecting emitted events")
+        events = await collect_events(response)
+        message_delta = next(d for t, d in events if t == "message_delta")
+        print(f"Comparing: stop_reason={message_delta['delta']['stop_reason']}")
+        assert message_delta["delta"]["stop_reason"] == "end_turn"
+
+
+class TestStreamingToolCallIndexRouting:
+    """Tests that streaming tool-call blocks are keyed by OpenAI index, not id presence."""
+
+    @pytest.mark.asyncio
+    async def test_repeated_id_does_not_open_multiple_blocks(self):
+        """
+        What it does: An upstream that repeats the same id on every argument fragment
+        yields a single tool_use block, not one per fragment.
+        Purpose: Guards against fragmenting one tool call into many unparseable blocks.
+        """
+        print("Setup: same index+id repeated across fragments")
+        response = FakeStreamResponse([
+            delta_chunk({"tool_calls": [{"index": 0, "id": "call_1",
+                                         "function": {"name": "t", "arguments": '{"a"'}}]}),
+            delta_chunk({"tool_calls": [{"index": 0, "id": "call_1",
+                                         "function": {"arguments": ':1}'}}]}),
+            delta_chunk({}, finish_reason="tool_calls"),
+            "data: [DONE]",
+        ])
+
+        print("Action: collecting emitted events")
+        events = await collect_events(response)
+        starts = [d for t, d in events if t == "content_block_start"]
+        tool_starts = [d for d in starts if d["content_block"]["type"] == "tool_use"]
+        print(f"Comparing: tool_use blocks opened={len(tool_starts)}")
+        assert len(tool_starts) == 1
+        # And both argument fragments target that one block's index.
+        deltas = [d for t, d in events if t == "content_block_delta"]
+        json_deltas = [d for d in deltas if d["delta"]["type"] == "input_json_delta"]
+        assert "".join(d["delta"]["partial_json"] for d in json_deltas) == '{"a":1}'
+        assert all(d["index"] == tool_starts[0]["index"] for d in json_deltas)
+
+    @pytest.mark.asyncio
+    async def test_two_indexes_open_two_blocks(self):
+        """
+        What it does: Two distinct tool-call indexes produce two separate tool_use blocks.
+        Purpose: Parallel/sequential tool calls must each get their own Anthropic block.
+        """
+        print("Setup: two tool calls at index 0 and 1")
+        response = FakeStreamResponse([
+            delta_chunk({"tool_calls": [{"index": 0, "id": "call_0",
+                                         "function": {"name": "a", "arguments": '{}'}}]}),
+            delta_chunk({"tool_calls": [{"index": 1, "id": "call_1",
+                                         "function": {"name": "b", "arguments": '{}'}}]}),
+            delta_chunk({}, finish_reason="tool_calls"),
+            "data: [DONE]",
+        ])
+
+        print("Action: collecting emitted events")
+        events = await collect_events(response)
+        tool_starts = [d for t, d in events if t == "content_block_start"
+                       and d["content_block"]["type"] == "tool_use"]
+        print(f"Comparing: tool_use blocks opened={len(tool_starts)}")
+        assert len(tool_starts) == 2
+        assert [d["content_block"]["id"] for d in tool_starts] == ["call_0", "call_1"]
+        assert [d["index"] for d in tool_starts] == [0, 1]

@@ -267,17 +267,34 @@ async def messages(
                         request_messages=messages_for_tokenizer, request_tools=tools_for_tokenizer, request_system=system_for_tokenizer
                     )
                     return JSONResponse(content=anthropic_resp)
+                except ValueError as e:
+                    # e.g. upstream returned truncated/invalid tool-call JSON
+                    logger.error(f"Response aggregation failed: {e}")
+                    return JSONResponse(
+                        status_code=502,
+                        content={"type": "error", "error": {"type": "api_error", "message": str(e)}}
+                    )
                 finally:
+                    # The upstream is streamed even for non-streaming clients;
+                    # aggregation breaks on [DONE] without exhausting the body,
+                    # so close the response to release the pooled connection.
+                    await response.aclose()
                     if http_client._owns_client:
                         await http_client.close()
         else:
+            # Capture retry-after before reading the body so a 429 can pass the
+            # upstream's backoff hint through to the client.
+            retry_after = response.headers.get("retry-after")
             await response.aread()
+            await response.aclose()
             if http_client._owns_client:
                 await http_client.close()
 
+            error_headers = {"retry-after": retry_after} if retry_after else None
             return JSONResponse(
                 status_code=response.status_code,
-                content=_extract_upstream_error_anthropic(response)
+                content=_extract_upstream_error_anthropic(response),
+                headers=error_headers,
             )
 
     except HTTPException:
